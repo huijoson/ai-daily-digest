@@ -9,6 +9,8 @@ create policy "own sources" on sources
 create policy "own push tokens" on push_tokens
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- articles & summaries are written ONLY by the pipeline via the service-role key
+-- (which bypasses RLS). Authenticated app clients get read-only (SELECT) access.
 create policy "read own articles" on articles
   for select using (exists (
     select 1 from sources s

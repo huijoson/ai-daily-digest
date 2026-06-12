@@ -23,6 +23,6 @@ describe('parseHackerNewsStories', () => {
 
   it('converts unix time to an ISO date', () => {
     const out = parseHackerNewsStories(items);
-    expect(out[0].publishedAt).toBe(new Date(1749549600 * 1000).toISOString());
+    expect(out[0].publishedAt).toBe('2025-06-10T10:00:00.000Z');
   });
 });

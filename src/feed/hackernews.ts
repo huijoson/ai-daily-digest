@@ -8,6 +8,6 @@ export function parseHackerNewsStories(items: HnItem[]): ParsedArticle[] {
       guid: `hn:${it.id}`,
       title: it.title.trim(),
       url: it.url ?? `https://news.ycombinator.com/item?id=${it.id}`,
-      publishedAt: it.time ? new Date(it.time * 1000).toISOString() : null,
+      publishedAt: it.time != null ? new Date(it.time * 1000).toISOString() : null,
     }));
 }
