@@ -59,4 +59,22 @@ describe('parseRssFeed', () => {
   it('throws on an unrecognized document', () => {
     expect(() => parseRssFeed('<html></html>')).toThrow();
   });
+
+  it('returns null publishedAt when RSS item has no pubDate', () => {
+    const rssNoPubDate = `<?xml version="1.0"?>
+<rss version="2.0"><channel>
+  <title>No Date Feed</title>
+  <item>
+    <title>Dateless Article</title>
+    <link>https://example.com/no-date</link>
+    <guid>https://example.com/no-date</guid>
+  </item>
+</channel></rss>`;
+    const items = parseRssFeed(rssNoPubDate);
+    expect(items[0].publishedAt).toBe(null);
+  });
+
+  it('throws on a non-Atom <feed> document (no Atom xmlns)', () => {
+    expect(() => parseRssFeed('<feed><entry/></feed>')).toThrow('Unrecognized');
+  });
 });

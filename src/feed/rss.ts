@@ -9,7 +9,7 @@ function toArray<T>(v: T | T[] | undefined | null): T[] {
 }
 
 function toIso(date: unknown): string | null {
-  if (!date) return null;
+  if (date === undefined || date === null) return null;
   const d = new Date(String(date));
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
@@ -31,7 +31,7 @@ function parseAtom(feed: any): ParsedArticle[] {
   return toArray(feed.entry).map((entry: any) => {
     const links = toArray<any>(entry.link);
     const link = links.find((l) => !l['@_rel'] || l['@_rel'] === 'alternate') ?? links[0];
-    const href = link?.['@_href'] ?? '';
+    const href = typeof link === 'string' ? link : (link?.['@_href'] ?? '');
     const title = entry.title?.['#text'] ?? entry.title ?? '';
     return {
       guid: String(entry.id ?? href ?? ''),
@@ -45,6 +45,9 @@ function parseAtom(feed: any): ParsedArticle[] {
 export function parseRssFeed(xml: string): ParsedArticle[] {
   const doc = parser.parse(xml);
   if (doc?.rss?.channel) return parseRss2(doc.rss.channel);
-  if (doc?.feed) return parseAtom(doc.feed);
+  const ns = doc?.feed?.['@_xmlns'];
+  if (doc?.feed && typeof ns === 'string' && ns.includes('w3.org/2005/Atom')) {
+    return parseAtom(doc.feed);
+  }
   throw new Error('Unrecognized feed format (expected RSS 2.0 or Atom)');
 }
