@@ -1,0 +1,44 @@
+schema: spec-driven
+
+context: |
+  Project: AI Personal Daily Digest — a personal news/content digest app.
+  It aggregates user-added RSS-style sources (Substack publications, YouTube
+  channels via their feed, Hacker News), summarizes each new item with an LLM,
+  and pushes a daily notification with the day's highlights.
+
+  Tech stack:
+    - Mobile app: Expo (React Native, TypeScript), reads/writes Supabase directly.
+    - Backend: Supabase (Postgres, Auth, Edge Functions in Deno/TypeScript, pg_cron).
+    - Scheduling: pg_cron triggers the fetch + summarize pipeline daily (~07:00).
+    - LLM: Gemini API (free tier) accessed through a thin `summarize()` abstraction
+      so the provider can be swapped (Claude/Groq) by changing one module.
+      NOTE: the user is on a Claude *subscription*, which CANNOT be used as a
+      programmatic API — backend LLM calls must use a pay-per-token / free-tier API.
+    - Push: Expo Push Notifications.
+
+  Conventions:
+    - TypeScript everywhere. Conventional commits.
+    - Test-driven development; pure logic (RSS parsing, dedup) unit-tested first.
+    - Pipeline steps must be idempotent: dedup by article `guid`, summary `status`
+      state machine ('pending' | 'done' | 'failed') so reruns are safe.
+    - Multi-tenant isolation enforced via Supabase Row Level Security.
+    - Implementation is handed to the "superpowers" skill set (writing-plans →
+      executing-plans + TDD) after this OpenSpec change is approved.
+
+  Domain capabilities (MVP scope):
+    auth, source-management, fetch-pipeline, summarization,
+    push-notifications, app-feed.
+
+  Explicit non-goals for the MVP (add later, do NOT build now):
+    auto-import of real account subscriptions (OAuth), article categorization /
+    tagging, cross-source topic clustering, read/saved state, full-text search.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
