@@ -9,13 +9,13 @@ create policy "own sources" on sources
 create policy "own push tokens" on push_tokens
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy "own articles" on articles
-  for all using (exists (
+create policy "read own articles" on articles
+  for select using (exists (
     select 1 from sources s
     where s.id = articles.source_id and s.user_id = auth.uid()));
 
-create policy "own summaries" on summaries
-  for all using (exists (
+create policy "read own summaries" on summaries
+  for select using (exists (
     select 1 from articles a
     join sources s on s.id = a.source_id
     where a.id = summaries.article_id and s.user_id = auth.uid()));

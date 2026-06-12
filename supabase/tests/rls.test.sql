@@ -1,5 +1,5 @@
 begin;
-select plan(2);
+select plan(6);
 
 -- two users
 insert into auth.users (id, email) values
@@ -11,18 +11,38 @@ insert into sources (id, user_id, type, feed_url)
   values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
           '11111111-1111-1111-1111-111111111111', 'rss', 'https://a.dev/feed');
 
+insert into articles (id, source_id, guid, title, url)
+  values ('cccccccc-cccc-cccc-cccc-cccccccccccc',
+          'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'g1', 'T', 'https://a.dev/1');
+
+insert into summaries (id, article_id, status)
+  values ('dddddddd-dddd-dddd-dddd-dddddddddddd',
+          'cccccccc-cccc-cccc-cccc-cccccccccccc', 'done');
+
 -- act as user B
 set local role authenticated;
 set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
 select is(
   (select count(*) from sources where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
   0::bigint, 'user B cannot see user A''s source');
+select is(
+  (select count(*) from articles where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+  0::bigint, 'user B cannot see user A''s article');
+select is(
+  (select count(*) from summaries where id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'),
+  0::bigint, 'user B cannot see user A''s summary');
 
 -- act as user A
 set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 select is(
   (select count(*) from sources where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
   1::bigint, 'user A can see their own source');
+select is(
+  (select count(*) from articles where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+  1::bigint, 'user A can see their own article');
+select is(
+  (select count(*) from summaries where id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'),
+  1::bigint, 'user A can see their own summary');
 
 select * from finish();
 rollback;
