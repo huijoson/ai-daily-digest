@@ -55,12 +55,15 @@ export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbC
         .order('created_at', { ascending: true })
         .limit(limit);
       if (error) throw error;
-      return (data ?? []).map((r: any) => ({
-        articleId: r.article_id,
-        title: r.articles?.title ?? '',
-        url: r.articles?.url ?? '',
-        content: null,
-      }));
+      return (data ?? []).map((r: any) => {
+        const article = Array.isArray(r.articles) ? r.articles[0] : r.articles;
+        return {
+          articleId: r.article_id,
+          title: article?.title ?? '',
+          url: article?.url ?? '',
+          content: null,
+        };
+      });
     },
 
     async saveSummary(articleId: string, result: SummaryResult): Promise<void> {
