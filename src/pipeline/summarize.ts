@@ -29,3 +29,23 @@ export function parseGeminiResponse(json: unknown): string {
   }
   return text.trim();
 }
+
+export interface GeminiDeps {
+  apiKey: string;
+  httpPostJson: (
+    url: string,
+    body: unknown,
+  ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
+}
+
+export function createGeminiSummarizer(deps: GeminiDeps): Summarizer {
+  return async (input) => {
+    const url =
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${deps.apiKey}`;
+    const body = { contents: [{ parts: [{ text: buildSummaryPrompt(input) }] }] };
+    const res = await deps.httpPostJson(url, body);
+    if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+    const text = parseGeminiResponse(await res.json());
+    return { text, model: GEMINI_MODEL };
+  };
+}

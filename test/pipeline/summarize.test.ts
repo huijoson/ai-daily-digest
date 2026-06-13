@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSummaryPrompt, parseGeminiResponse, GEMINI_MODEL } from '../../src/pipeline/summarize';
+import { buildSummaryPrompt, parseGeminiResponse, GEMINI_MODEL, createGeminiSummarizer } from '../../src/pipeline/summarize';
 
 describe('buildSummaryPrompt', () => {
   it('includes the title and url', () => {
@@ -32,5 +32,36 @@ describe('GEMINI_MODEL', () => {
   it('is a non-empty model id', () => {
     expect(typeof GEMINI_MODEL).toBe('string');
     expect(GEMINI_MODEL.length).toBeGreaterThan(0);
+  });
+});
+
+describe('createGeminiSummarizer', () => {
+  const okResponse = {
+    ok: true,
+    status: 200,
+    json: async () => ({ candidates: [{ content: { parts: [{ text: 'Summed.' }] } }] }),
+  };
+
+  it('returns the summary text and the model id on success', async () => {
+    const calls: Array<{ url: string; body: unknown }> = [];
+    const summarize = createGeminiSummarizer({
+      apiKey: 'KEY',
+      httpPostJson: async (url, body) => {
+        calls.push({ url, body });
+        return okResponse as any;
+      },
+    });
+    const result = await summarize({ title: 'T', url: 'u', content: 'c' });
+    expect(result).toEqual({ text: 'Summed.', model: 'gemini-2.0-flash' });
+    expect(calls[0].url).toContain('gemini-2.0-flash');
+    expect(calls[0].url).toContain('KEY');
+  });
+
+  it('throws on a non-ok HTTP status (so the caller can mark it failed)', async () => {
+    const summarize = createGeminiSummarizer({
+      apiKey: 'KEY',
+      httpPostJson: async () => ({ ok: false, status: 429, json: async () => ({}) }) as any,
+    });
+    await expect(summarize({ title: 'T', url: 'u', content: 'c' })).rejects.toThrow('429');
   });
 });
