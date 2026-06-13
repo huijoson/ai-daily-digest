@@ -2,6 +2,9 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { ParsedArticle } from '../../../src/feed/types.ts';
 import type { DbClient, PendingSummary, SourceRow, SummaryResult } from '../../../src/pipeline/types.ts';
 
+/** Stop retrying a summary after this many failed attempts. */
+export const MAX_SUMMARY_ATTEMPTS = 5;
+
 export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbClient {
   const sb: SupabaseClient = createClient(url, serviceRoleKey, { auth: { persistSession: false } });
 
@@ -52,6 +55,7 @@ export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbC
       const { data, error } = await sb.from('summaries')
         .select('article_id, articles(title, url)')
         .in('status', ['pending', 'failed'])
+        .lt('attempts', MAX_SUMMARY_ATTEMPTS)
         .order('created_at', { ascending: true })
         .limit(limit);
       if (error) throw error;
