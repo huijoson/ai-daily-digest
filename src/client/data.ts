@@ -8,7 +8,12 @@ import type { SourceListItem, FeedItem } from './types';
 
 export async function addSourceFromUrl(url: string, httpGet: HttpGet): Promise<void> {
   const prepared = await prepareSource(url, httpGet);
+  const { data: userData, error: userErr } = await supabase.auth.getUser();
+  if (userErr) throw userErr;
+  const userId = userData.user?.id;
+  if (!userId) throw new Error('Not signed in');
   const { error } = await supabase.from('sources').insert({
+    user_id: userId,
     type: prepared.type, feed_url: prepared.feedUrl, title: prepared.title, is_active: true,
   });
   if (error) throw error;

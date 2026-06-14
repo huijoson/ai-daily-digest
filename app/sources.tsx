@@ -14,6 +14,7 @@ export default function Sources() {
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try { setItems(await listSources()); } catch (e: any) { Alert.alert('Load failed', e.message); }
@@ -26,6 +27,13 @@ export default function Sources() {
     setBusy(true);
     try { await addSourceFromUrl(url.trim(), httpGet); setUrl(''); await load(); }
     catch (e: any) { Alert.alert("Couldn't add source", e.message); }
+    finally { setBusy(false); }
+  }
+
+  async function addHackerNews() {
+    setBusy(true);
+    try { await addSourceFromUrl('https://news.ycombinator.com/rss', httpGet); await load(); }
+    catch (e: any) { Alert.alert("Couldn't add Hacker News", e.message); }
     finally { setBusy(false); }
   }
 
@@ -51,10 +59,11 @@ export default function Sources() {
         />
         <Button title={busy ? '…' : 'Add'} onPress={add} disabled={busy} />
       </View>
+      <Button title="+ Add Hacker News" onPress={addHackerNews} disabled={busy} />
       <FlatList
         data={items}
         keyExtractor={(i) => i.id}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
         ListEmptyComponent={<Text style={{ color: '#888' }}>No sources yet — add one above.</Text>}
         renderItem={({ item }) => (
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 8 }}>
