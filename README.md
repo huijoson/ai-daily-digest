@@ -34,14 +34,14 @@ openspec validate --strict          # validate the spec
 
 ## Status
 
-🚧 In progress (MVP):
+✅ MVP code-complete (all four plans built, reviewed, and merged):
 
 - ✅ Plan A — feed-parsing core + Postgres schema/RLS
 - ✅ Plan B — ingestion pipeline (fetch + Gemini summarize + pg_cron)
 - ✅ Plan C — mobile app (auth, sources, Today feed, article detail)
 - ✅ Plan D — push notifications + end-to-end verification + archive
 
-MVP code is complete. Live verification is manual: Docker for the DB/pipeline (`supabase start`), a real physical device for the app and push (simulators do not receive Expo push notifications).
+The OpenSpec change is archived; the six capabilities now live in `openspec/specs/`. Live verification is manual: Docker for the DB/pipeline (`supabase start`), a real physical device for the app and push (simulators do not receive Expo push notifications).
 
 Automated tests cover the pure logic; live DB/pipeline/app steps are verified manually (see below and the Plan B/C docs).
 
