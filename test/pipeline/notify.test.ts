@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildDigestMessage, chunk } from '../../src/pipeline/notify';
+import { buildDigestMessage, chunk, tokensToPrune } from '../../src/pipeline/notify';
+import type { ExpoPushTicket, PushTokenRow } from '../../src/pipeline/notify-types';
 
 describe('buildDigestMessage', () => {
   it('uses the singular for one summary', () => {
@@ -19,5 +20,32 @@ describe('chunk', () => {
   });
   it('keeps everything in one group when smaller than the size', () => {
     expect(chunk([1, 2], 100)).toEqual([[1, 2]]);
+  });
+});
+
+describe('tokensToPrune', () => {
+  const tokens: PushTokenRow[] = [
+    { id: 't1', expoToken: 'a' },
+    { id: 't2', expoToken: 'b' },
+    { id: 't3', expoToken: 'c' },
+  ];
+
+  it('returns ids of tokens whose ticket reports DeviceNotRegistered', () => {
+    const tickets: ExpoPushTicket[] = [
+      { status: 'ok', id: 'x' },
+      { status: 'error', details: { error: 'DeviceNotRegistered' } },
+      { status: 'error', details: { error: 'MessageRateExceeded' } },
+    ];
+    expect(tokensToPrune(tickets, tokens)).toEqual(['t2']);
+  });
+
+  it('returns nothing when all succeed', () => {
+    const tickets: ExpoPushTicket[] = [{ status: 'ok' }, { status: 'ok' }, { status: 'ok' }];
+    expect(tokensToPrune(tickets, tokens)).toEqual([]);
+  });
+
+  it('ignores tickets beyond the token list length', () => {
+    const tickets: ExpoPushTicket[] = [{ status: 'error', details: { error: 'DeviceNotRegistered' } }];
+    expect(tokensToPrune(tickets, tokens)).toEqual(['t1']);
   });
 });
