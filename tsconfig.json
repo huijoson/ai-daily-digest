@@ -10,5 +10,5 @@
     "types": ["vitest/globals"]
   },
   "include": ["src", "test"],
-  "exclude": ["src/client/supabase.ts", "src/client/data.ts"]
+  "exclude": ["src/client/supabase.ts", "src/client/data.ts", "src/client/push.ts"]
 }
