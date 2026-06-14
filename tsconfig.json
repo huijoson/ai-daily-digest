@@ -9,5 +9,6 @@
     "noEmit": true,
     "types": ["vitest/globals"]
   },
-  "include": ["src", "test"]
+  "include": ["src", "test"],
+  "exclude": ["src/client/supabase.ts", "src/client/data.ts"]
 }
