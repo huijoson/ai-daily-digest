@@ -34,7 +34,14 @@ openspec validate --strict          # validate the spec
 
 ## Status
 
-🚧 Spec approved; implementation not started.
+🚧 In progress (MVP):
+
+- ✅ Plan A — feed-parsing core + Postgres schema/RLS
+- ✅ Plan B — ingestion pipeline (fetch + Gemini summarize + pg_cron)
+- ✅ Plan C — mobile app (auth, sources, Today feed, article detail)
+- ⏳ Plan D — push notifications + end-to-end verification + archive
+
+Automated tests cover the pure logic; live DB/pipeline/app steps are verified manually (see below and the Plan B/C docs).
 
 ## Mobile app
 
