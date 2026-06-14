@@ -1,4 +1,4 @@
-import type { ExpoPushTicket, PushTokenRow } from './notify-types';
+import type { ExpoPushTicket, PushTokenRow, NotifyDeps } from './notify-types';
 
 export function tokensToPrune(tickets: ExpoPushTicket[], tokens: PushTokenRow[]): string[] {
   const n = Math.min(tickets.length, tokens.length);
@@ -22,4 +22,30 @@ export function chunk<T>(items: T[], size: number): T[][] {
     out.push(items.slice(i, i + size));
   }
   return out;
+}
+
+const EXPO_PUSH_BATCH = 100; // Expo accepts up to 100 messages per request
+
+export async function runNotify(deps: NotifyDeps): Promise<{ sent: number; pruned: number }> {
+  const digests = await deps.db.listUserDigests();
+  let sent = 0;
+  let pruned = 0;
+  for (const digest of digests) {
+    if (digest.newCount <= 0) continue;
+    const tokens = await deps.db.listPushTokens(digest.userId);
+    if (tokens.length === 0) continue;
+    const message = buildDigestMessage(digest.newCount);
+    const pruneIds: string[] = [];
+    for (const group of chunk(tokens, EXPO_PUSH_BATCH)) {
+      const messages = group.map((t) => ({ to: t.expoToken, title: message.title, body: message.body }));
+      const tickets = await deps.send(messages);
+      sent += messages.length;
+      pruneIds.push(...tokensToPrune(tickets, group));
+    }
+    if (pruneIds.length > 0) {
+      await deps.db.deletePushTokens(pruneIds);
+      pruned += pruneIds.length;
+    }
+  }
+  return { sent, pruned };
 }

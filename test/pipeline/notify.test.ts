@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildDigestMessage, chunk, tokensToPrune } from '../../src/pipeline/notify';
-import type { ExpoPushTicket, PushTokenRow } from '../../src/pipeline/notify-types';
+import { buildDigestMessage, chunk, tokensToPrune, runNotify } from '../../src/pipeline/notify';
+import type { ExpoPushTicket, PushTokenRow, ExpoPushMessage, NotifyDb, UserDigest } from '../../src/pipeline/notify-types';
 
 describe('buildDigestMessage', () => {
   it('uses the singular for one summary', () => {
@@ -47,5 +47,58 @@ describe('tokensToPrune', () => {
   it('ignores tickets beyond the token list length', () => {
     const tickets: ExpoPushTicket[] = [{ status: 'error', details: { error: 'DeviceNotRegistered' } }];
     expect(tokensToPrune(tickets, tokens)).toEqual(['t1']);
+  });
+});
+
+function makeDb(digests: UserDigest[], tokensByUser: Record<string, PushTokenRow[]>) {
+  const deleted: string[] = [];
+  const db: NotifyDb = {
+    listUserDigests: async () => digests,
+    listPushTokens: async (userId) => tokensByUser[userId] ?? [],
+    deletePushTokens: async (ids) => { deleted.push(...ids); },
+  };
+  return { db, deleted };
+}
+
+describe('runNotify', () => {
+  it('sends one message per token with the digest body and counts sends', async () => {
+    const { db } = makeDb([{ userId: 'u1', newCount: 3 }], { u1: [{ id: 't1', expoToken: 'a' }, { id: 't2', expoToken: 'b' }] });
+    const sent: ExpoPushMessage[] = [];
+    const send = async (msgs: ExpoPushMessage[]) => { sent.push(...msgs); return msgs.map(() => ({ status: 'ok' as const })); };
+    const res = await runNotify({ db, send });
+    expect(sent).toEqual([
+      { to: 'a', title: 'AI Daily Digest', body: '3 new summaries ready' },
+      { to: 'b', title: 'AI Daily Digest', body: '3 new summaries ready' },
+    ]);
+    expect(res).toEqual({ sent: 2, pruned: 0 });
+  });
+
+  it('skips a user with no tokens and does not send', async () => {
+    const { db } = makeDb([{ userId: 'u1', newCount: 5 }], { u1: [] });
+    let calls = 0;
+    const send = async (msgs: ExpoPushMessage[]) => { calls++; return msgs.map(() => ({ status: 'ok' as const })); };
+    const res = await runNotify({ db, send });
+    expect(calls).toBe(0);
+    expect(res).toEqual({ sent: 0, pruned: 0 });
+  });
+
+  it('does not send when newCount is zero', async () => {
+    const { db } = makeDb([{ userId: 'u1', newCount: 0 }], { u1: [{ id: 't1', expoToken: 'a' }] });
+    let calls = 0;
+    const send = async (msgs: ExpoPushMessage[]) => { calls++; return msgs.map(() => ({ status: 'ok' as const })); };
+    const res = await runNotify({ db, send });
+    expect(calls).toBe(0);
+    expect(res).toEqual({ sent: 0, pruned: 0 });
+  });
+
+  it('prunes tokens reported DeviceNotRegistered', async () => {
+    const { db, deleted } = makeDb([{ userId: 'u1', newCount: 1 }], { u1: [{ id: 't1', expoToken: 'a' }, { id: 't2', expoToken: 'b' }] });
+    const send = async (_msgs: ExpoPushMessage[]) => [
+      { status: 'ok' as const },
+      { status: 'error' as const, details: { error: 'DeviceNotRegistered' } },
+    ];
+    const res = await runNotify({ db, send });
+    expect(deleted).toEqual(['t2']);
+    expect(res).toEqual({ sent: 2, pruned: 1 });
   });
 });
