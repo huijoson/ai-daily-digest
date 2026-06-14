@@ -1,6 +1,6 @@
 import type { Summarizer } from './types';
 
-export const GEMINI_MODEL = 'gemini-2.0-flash';
+export const GEMINI_MODEL = 'gemini-2.5-flash';
 
 export function buildSummaryPrompt(input: {
   title: string;

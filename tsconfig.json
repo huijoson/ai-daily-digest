@@ -7,8 +7,18 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["vitest/globals"]
+    "types": [
+      "vitest/globals"
+    ]
   },
-  "include": ["src", "test"],
-  "exclude": ["src/client/supabase.ts", "src/client/data.ts", "src/client/push.ts"]
+  "include": [
+    "src",
+    "test"
+  ],
+  "exclude": [
+    "src/client/supabase.ts",
+    "src/client/data.ts",
+    "src/client/push.ts"
+  ],
+  "extends": "expo/tsconfig.base"
 }

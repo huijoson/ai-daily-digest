@@ -52,8 +52,8 @@ describe('createGeminiSummarizer', () => {
       },
     });
     const result = await summarize({ title: 'T', url: 'u', content: 'c' });
-    expect(result).toEqual({ text: 'Summed.', model: 'gemini-2.0-flash' });
-    expect(calls[0].url).toContain('gemini-2.0-flash');
+    expect(result).toEqual({ text: 'Summed.', model: 'gemini-2.5-flash' });
+    expect(calls[0].url).toContain('gemini-2.5-flash');
     expect(calls[0].url).toContain('KEY');
   });
 
