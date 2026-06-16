@@ -29,4 +29,12 @@ describe('extractImageUrls', () => {
     const many = Array.from({ length: MAX_ARTICLE_IMAGES + 3 }, (_, i) => img(chart(i))).join('');
     expect(extractImageUrls(many)).toHaveLength(MAX_ARTICLE_IMAGES);
   });
+  it('drops a content-host image whose w_ is under 400 (isolates the size branch)', () => {
+    const small = 'https://substackcdn.com/image/fetch/w_120,c_limit,f_auto/https%3A%2F%2Fexample.com%2Fpic.png';
+    expect(extractImageUrls(`<img src="${small}">`)).toEqual([]);
+  });
+  it('drops a 1x1 pixel served from the content host (isolates the attribute branch)', () => {
+    const px = 'https://substackcdn.com/image/fetch/w_1456,c_limit,f_auto/https%3A%2F%2Fexample.com%2Fp.png';
+    expect(extractImageUrls(`<img width="1" height="1" src="${px}">`)).toEqual([]);
+  });
 });

@@ -49,6 +49,7 @@ export function parseSubstackEmail(msg: EmailMessage): ParsedArticle {
     url,
     publishedAt: msg.date,
     content: content.length > 0 ? content : null,
+    imageUrls: extractImageUrls(msg.html),
   };
 }
 
