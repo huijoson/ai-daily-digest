@@ -14,6 +14,11 @@ describe('buildSummaryPrompt', () => {
     expect(p).toContain('T');
     expect(p.toLowerCase()).toContain('no content');
   });
+
+  it('instructs the model to summarize in the article\'s own language', () => {
+    const p = buildSummaryPrompt({ title: 'T', url: 'u', content: 'c' });
+    expect(p.toLowerCase()).toContain('same language');
+  });
 });
 
 describe('parseGeminiResponse', () => {

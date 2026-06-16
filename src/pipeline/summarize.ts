@@ -12,6 +12,7 @@ export function buildSummaryPrompt(input: {
     : '(no content provided; summarize based on the title and link)';
   return [
     'Summarize the following article in 2-3 concise sentences for a daily digest.',
+    'Write the summary in the same language as the article.',
     'Be factual and neutral. Do not add any preamble or markdown.',
     '',
     `Title: ${input.title}`,

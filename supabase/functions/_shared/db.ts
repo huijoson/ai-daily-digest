@@ -53,14 +53,8 @@ export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbC
     },
 
     async listPendingSummaries(limit: number): Promise<PendingSummary[]> {
-      const { data, error } = await sb.from('summaries')
-        .select('article_id, articles(title, url, content)')
-        .in('status', ['pending', 'failed'])
-        .lt('attempts', MAX_SUMMARY_ATTEMPTS)
-        .order('created_at', { ascending: true })
-        .limit(limit);
-      if (error) throw error;
-      return (data ?? []).map((r: any) => {
+      const sel = 'article_id, articles!inner(title, url, content, sources!inner(type))';
+      const mapRow = (r: any): PendingSummary => {
         const article = Array.isArray(r.articles) ? r.articles[0] : r.articles;
         return {
           articleId: r.article_id,
@@ -68,7 +62,23 @@ export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbC
           url: article?.url ?? '',
           content: article?.content ?? null,
         };
-      });
+      };
+      // Prioritize paid email content: take email-source pending first, then the rest.
+      const emailQ = await sb.from('summaries').select(sel)
+        .in('status', ['pending', 'failed']).lt('attempts', MAX_SUMMARY_ATTEMPTS)
+        .eq('articles.sources.type', 'email')
+        .order('created_at', { ascending: true }).limit(limit);
+      if (emailQ.error) throw emailQ.error;
+      let rows = emailQ.data ?? [];
+      if (rows.length < limit) {
+        const restQ = await sb.from('summaries').select(sel)
+          .in('status', ['pending', 'failed']).lt('attempts', MAX_SUMMARY_ATTEMPTS)
+          .neq('articles.sources.type', 'email')
+          .order('created_at', { ascending: true }).limit(limit - rows.length);
+        if (restQ.error) throw restQ.error;
+        rows = rows.concat(restQ.data ?? []);
+      }
+      return rows.map(mapRow);
     },
 
     async saveSummary(articleId: string, result: SummaryResult): Promise<void> {

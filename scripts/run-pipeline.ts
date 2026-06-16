@@ -72,13 +72,8 @@ const db: DbClient = {
     if (error) throw error;
   },
   async listPendingSummaries(limit: number): Promise<PendingSummary[]> {
-    const { data, error } = await sb.from('summaries')
-      .select('article_id, articles(title, url, content)')
-      .in('status', ['pending', 'failed'])
-      .order('created_at', { ascending: true })
-      .limit(limit);
-    if (error) throw error;
-    return (data ?? []).map((r: any) => {
+    const sel = 'article_id, articles!inner(title, url, content, sources!inner(type))';
+    const mapRow = (r: any): PendingSummary => {
       const article = one<any>(r.articles);
       return {
         articleId: r.article_id,
@@ -86,7 +81,21 @@ const db: DbClient = {
         url: article?.url ?? '',
         content: article?.content ?? null,
       };
-    });
+    };
+    // Prioritize paid email content: take email-source pending first, then the rest.
+    const emailQ = await sb.from('summaries').select(sel)
+      .in('status', ['pending', 'failed']).eq('articles.sources.type', 'email')
+      .order('created_at', { ascending: true }).limit(limit);
+    if (emailQ.error) throw emailQ.error;
+    let rows = emailQ.data ?? [];
+    if (rows.length < limit) {
+      const restQ = await sb.from('summaries').select(sel)
+        .in('status', ['pending', 'failed']).neq('articles.sources.type', 'email')
+        .order('created_at', { ascending: true }).limit(limit - rows.length);
+      if (restQ.error) throw restQ.error;
+      rows = rows.concat(restQ.data ?? []);
+    }
+    return rows.map(mapRow);
   },
   async saveSummary(articleId, result): Promise<void> {
     const { error } = await sb.from('summaries')
