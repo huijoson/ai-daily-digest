@@ -20,5 +20,6 @@ export interface FeedItem {
   url: string;
   summary: string;
   sourceTitle: string;
+  sourceType: SourceType;
   publishedAt: string | null;
 }
