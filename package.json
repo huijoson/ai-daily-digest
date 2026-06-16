@@ -23,6 +23,8 @@
     "expo-router": "~56.2.10",
     "expo-status-bar": "~56.0.4",
     "fast-xml-parser": "^4.5.0",
+    "imapflow": "^1.4.1",
+    "mailparser": "^3.9.10",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
