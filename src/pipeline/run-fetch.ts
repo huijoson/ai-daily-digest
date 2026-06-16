@@ -7,6 +7,7 @@ export async function runFetch(deps: FetchDeps): Promise<{ inserted: number; err
   let inserted = 0;
   let errors = 0;
   for (const source of sources) {
+    if (source.type === 'email') continue; // email sources are handled by runEmailIngest
     try {
       const parsed = await fetchSource(source, deps.httpGet);
       // Existing guids are scoped to THIS source — uniqueness is per (source_id, guid).

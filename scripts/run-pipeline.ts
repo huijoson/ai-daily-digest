@@ -10,10 +10,13 @@
  */
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { ImapFlow } from 'imapflow';
+import { simpleParser } from 'mailparser';
 import { runFetch } from '../src/pipeline/run-fetch';
 import { runSummarize } from '../src/pipeline/run-summarize';
+import { runEmailIngest } from '../src/pipeline/email';
 import { createGeminiSummarizer } from '../src/pipeline/summarize';
-import type { DbClient, HttpGet, PendingSummary, SourceRow } from '../src/pipeline/types';
+import type { DbClient, HttpGet, PendingSummary, SourceRow, EmailFetcher, EmailMessage } from '../src/pipeline/types';
 import type { ParsedArticle } from '../src/feed/types';
 
 // --- load .env (minimal parser, no extra deps) ---
@@ -52,7 +55,8 @@ const db: DbClient = {
     if (articles.length === 0) return 0;
     const { data, error } = await sb.from('articles').insert(
       articles.map((a) => ({
-        source_id: sourceId, guid: a.guid, title: a.title, url: a.url, published_at: a.publishedAt,
+        source_id: sourceId, guid: a.guid, title: a.title, url: a.url,
+        published_at: a.publishedAt, content: a.content ?? null,
       })),
     ).select('id');
     if (error) throw error;
@@ -69,14 +73,19 @@ const db: DbClient = {
   },
   async listPendingSummaries(limit: number): Promise<PendingSummary[]> {
     const { data, error } = await sb.from('summaries')
-      .select('article_id, articles(title, url)')
+      .select('article_id, articles(title, url, content)')
       .in('status', ['pending', 'failed'])
       .order('created_at', { ascending: true })
       .limit(limit);
     if (error) throw error;
     return (data ?? []).map((r: any) => {
       const article = one<any>(r.articles);
-      return { articleId: r.article_id, title: article?.title ?? '', url: article?.url ?? '', content: null };
+      return {
+        articleId: r.article_id,
+        title: article?.title ?? '',
+        url: article?.url ?? '',
+        content: article?.content ?? null,
+      };
     });
   },
   async saveSummary(articleId, result): Promise<void> {
@@ -109,11 +118,50 @@ const summarize = createGeminiSummarizer({
   },
 });
 
+const gmailUser = process.env.GMAIL_USER;
+const gmailPass = process.env.GMAIL_APP_PASSWORD;
+
+const fetchEmails: EmailFetcher = async (sender) => {
+  if (!gmailUser || !gmailPass) {
+    console.log('     (skipping email: GMAIL_USER / GMAIL_APP_PASSWORD not set)');
+    return [];
+  }
+  const client = new ImapFlow({
+    host: 'imap.gmail.com', port: 993, secure: true,
+    auth: { user: gmailUser, pass: gmailPass }, logger: false,
+  });
+  const out: EmailMessage[] = [];
+  await client.connect();
+  try {
+    await client.mailboxOpen('INBOX');
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+    for await (const msg of client.fetch({ from: sender, since }, { source: true })) {
+      try {
+        const parsed = await simpleParser(msg.source as Buffer);
+        out.push({
+          subject: parsed.subject ?? '',
+          html: typeof parsed.html === 'string' ? parsed.html : '',
+          text: parsed.text ?? '',
+          messageId: parsed.messageId ?? `imap:${msg.uid}`,
+          date: parsed.date ? parsed.date.toISOString() : null,
+        });
+      } catch (e) {
+        console.log(`     (skipped one unparseable email: ${e instanceof Error ? e.message : e})`);
+      }
+    }
+  } finally {
+    await client.logout();
+  }
+  return out;
+};
+
 // --- run it ---
 async function main() {
-  console.log('1/2  Fetching feeds…');
+  console.log('1/3  Ingesting emails…');
+  console.log('     ', await runEmailIngest({ db, fetchEmails }));
+  console.log('2/3  Fetching feeds…');
   console.log('     ', await runFetch({ db, httpGet }));
-  console.log('2/2  Summarizing with Gemini (up to 8)…');
+  console.log('3/3  Summarizing with Gemini (up to 8)…');
   console.log('     ', await runSummarize({ db, summarize, batchSize: 8 }));
   console.log('Done. Refresh the app to see today\'s summaries.');
 }

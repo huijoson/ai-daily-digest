@@ -34,6 +34,7 @@ export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbC
           title: a.title,
           url: a.url,
           published_at: a.publishedAt,
+          content: a.content ?? null,
         })))
         .select('id');
       if (error) throw error;
@@ -53,7 +54,7 @@ export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbC
 
     async listPendingSummaries(limit: number): Promise<PendingSummary[]> {
       const { data, error } = await sb.from('summaries')
-        .select('article_id, articles(title, url)')
+        .select('article_id, articles(title, url, content)')
         .in('status', ['pending', 'failed'])
         .lt('attempts', MAX_SUMMARY_ATTEMPTS)
         .order('created_at', { ascending: true })
@@ -65,7 +66,7 @@ export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbC
           articleId: r.article_id,
           title: article?.title ?? '',
           url: article?.url ?? '',
-          content: null,
+          content: article?.content ?? null,
         };
       });
     },

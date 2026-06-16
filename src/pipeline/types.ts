@@ -58,3 +58,18 @@ export interface SummarizeDeps {
   summarize: Summarizer;
   batchSize: number;
 }
+
+export interface EmailMessage {
+  subject: string;
+  html: string;
+  text: string;
+  messageId: string;
+  date: string | null; // ISO 8601 or null
+}
+
+export type EmailFetcher = (sender: string) => Promise<EmailMessage[]>;
+
+export interface EmailIngestDeps {
+  db: DbClient;
+  fetchEmails: EmailFetcher;
+}
