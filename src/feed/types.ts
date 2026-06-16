@@ -6,6 +6,7 @@ export interface ParsedArticle {
   url: string;
   publishedAt: string | null; // ISO 8601, or null if the feed omits a date
   content?: string | null;     // full text when available (e.g. email body); else unset/null
+  imageUrls?: string[];
 }
 
 export interface HnItem {

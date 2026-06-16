@@ -15,7 +15,7 @@ import { simpleParser } from 'mailparser';
 import { runFetch } from '../src/pipeline/run-fetch';
 import { runSummarize } from '../src/pipeline/run-summarize';
 import { runEmailIngest } from '../src/pipeline/email';
-import { createGeminiSummarizer } from '../src/pipeline/summarize';
+import { createGeminiSummarizer, supportedImageMime } from '../src/pipeline/summarize';
 import type { DbClient, HttpGet, PendingSummary, SourceRow, EmailFetcher, EmailMessage } from '../src/pipeline/types';
 import type { ParsedArticle } from '../src/feed/types';
 
@@ -56,7 +56,7 @@ const db: DbClient = {
     const { data, error } = await sb.from('articles').insert(
       articles.map((a) => ({
         source_id: sourceId, guid: a.guid, title: a.title, url: a.url,
-        published_at: a.publishedAt, content: a.content ?? null,
+        published_at: a.publishedAt, content: a.content ?? null, image_urls: a.imageUrls ?? null,
       })),
     ).select('id');
     if (error) throw error;
@@ -72,7 +72,7 @@ const db: DbClient = {
     if (error) throw error;
   },
   async listPendingSummaries(limit: number): Promise<PendingSummary[]> {
-    const sel = 'article_id, articles!inner(title, url, content, sources!inner(type))';
+    const sel = 'article_id, articles!inner(title, url, content, image_urls, sources!inner(type))';
     const mapRow = (r: any): PendingSummary => {
       const article = one<any>(r.articles);
       const source = one<any>(article?.sources);
@@ -81,6 +81,7 @@ const db: DbClient = {
         title: article?.title ?? '',
         url: article?.url ?? '',
         content: article?.content ?? null,
+        imageUrls: article?.image_urls ?? [],
         sourceType: source?.type ?? 'rss',
       };
     };
@@ -119,6 +120,22 @@ const httpGet: HttpGet = async (u) => {
   return res.text();
 };
 
+const fetchImage = async (url: string): Promise<{ mimeType: string; base64: string } | null> => {
+  try {
+    const res = await fetch(url, {
+      headers: { Accept: 'image/png,image/jpeg,image/webp' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    const mimeType = supportedImageMime(res.headers.get('content-type'));
+    if (!mimeType) return null;
+    const base64 = Buffer.from(await res.arrayBuffer()).toString('base64');
+    return { mimeType, base64 };
+  } catch {
+    return null;
+  }
+};
+
 const summarize = createGeminiSummarizer({
   apiKey: geminiKey,
   httpPostJson: async (u, body) => {
@@ -127,6 +144,7 @@ const summarize = createGeminiSummarizer({
     });
     return { ok: res.ok, status: res.status, json: () => res.json() };
   },
+  fetchImage,
 });
 
 const gmailUser = process.env.GMAIL_USER;

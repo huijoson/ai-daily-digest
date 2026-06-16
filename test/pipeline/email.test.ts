@@ -35,6 +35,12 @@ describe('parseSubstackEmail', () => {
     expect(a.publishedAt).toBe(null);
     expect(a.content).toBe(null);
   });
+
+  it('captures content image URLs from the html', () => {
+    const chart = 'https://substackcdn.com/image/fetch/w_1456,c_limit,f_auto/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc.png';
+    const a = parseSubstackEmail({ ...base, html: `<p>x</p><img src="${chart}">` });
+    expect(a.imageUrls).toEqual([chart]);
+  });
 });
 
 function makeDb(sources: SourceRow[], existing: Record<string, string[]> = {}) {
