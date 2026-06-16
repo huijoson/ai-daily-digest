@@ -136,14 +136,18 @@ const fetchEmails: EmailFetcher = async (sender) => {
     await client.mailboxOpen('INBOX');
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
     for await (const msg of client.fetch({ from: sender, since }, { source: true })) {
-      const parsed = await simpleParser(msg.source as Buffer);
-      out.push({
-        subject: parsed.subject ?? '',
-        html: typeof parsed.html === 'string' ? parsed.html : '',
-        text: parsed.text ?? '',
-        messageId: parsed.messageId ?? `imap:${msg.uid}`,
-        date: parsed.date ? parsed.date.toISOString() : null,
-      });
+      try {
+        const parsed = await simpleParser(msg.source as Buffer);
+        out.push({
+          subject: parsed.subject ?? '',
+          html: typeof parsed.html === 'string' ? parsed.html : '',
+          text: parsed.text ?? '',
+          messageId: parsed.messageId ?? `imap:${msg.uid}`,
+          date: parsed.date ? parsed.date.toISOString() : null,
+        });
+      } catch (e) {
+        console.log(`     (skipped one unparseable email: ${e instanceof Error ? e.message : e})`);
+      }
     }
   } finally {
     await client.logout();
