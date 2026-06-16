@@ -30,6 +30,7 @@ describe('mapFeedRow', () => {
         title: 'Title',
         url: 'https://x/1',
         published_at: '2026-06-14T09:00:00.000Z',
+        image_urls: ['https://cdn/img1.png'],
         sources: { title: 'Lenny', type: 'email' },
       },
     };
@@ -40,6 +41,7 @@ describe('mapFeedRow', () => {
       summary: 'A summary.',
       sourceTitle: 'Lenny',
       sourceType: 'email',
+      imageUrls: ['https://cdn/img1.png'],
       publishedAt: '2026-06-14T09:00:00.000Z',
     });
   });
@@ -50,13 +52,13 @@ describe('mapFeedRow', () => {
       articles: [{ title: 'T2', url: 'u2', published_at: null, sources: [{ title: 'S2', type: 'hackernews' }] }],
     };
     expect(mapFeedRow(row)).toEqual({
-      articleId: 'a2', title: 'T2', url: 'u2', summary: '', sourceTitle: 'S2', sourceType: 'hackernews', publishedAt: null,
+      articleId: 'a2', title: 'T2', url: 'u2', summary: '', sourceTitle: 'S2', sourceType: 'hackernews', imageUrls: [], publishedAt: null,
     });
   });
 });
 
 const fi = (id: string, sourceType: FeedItem['sourceType'], publishedAt: string | null): FeedItem => ({
-  articleId: id, title: id, url: 'u', summary: 's', sourceTitle: 't', sourceType, publishedAt,
+  articleId: id, title: id, url: 'u', summary: 's', sourceTitle: 't', sourceType, imageUrls: [], publishedAt,
 });
 
 describe('groupFeed', () => {

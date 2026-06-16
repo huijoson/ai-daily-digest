@@ -28,6 +28,7 @@ export function mapFeedRow(row: any): FeedItem {
     summary: row.summary_text ?? '',
     sourceTitle: source?.title ?? '',
     sourceType: source?.type ?? 'rss',
+    imageUrls: article?.image_urls ?? [],
     publishedAt: article?.published_at ?? null,
   };
 }

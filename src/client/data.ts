@@ -44,7 +44,7 @@ export async function listTodaySummaries(): Promise<FeedItem[]> {
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
   const { data, error } = await supabase
     .from('summaries')
-    .select('article_id, summary_text, articles(title, url, published_at, sources(title, type))')
+    .select('article_id, summary_text, articles(title, url, published_at, image_urls, sources(title, type))')
     .eq('status', 'done')
     .gte('updated_at', startOfToday.toISOString())
     .order('updated_at', { ascending: false });
@@ -55,7 +55,7 @@ export async function listTodaySummaries(): Promise<FeedItem[]> {
 export async function getFeedItem(articleId: string): Promise<FeedItem | null> {
   const { data, error } = await supabase
     .from('summaries')
-    .select('article_id, summary_text, articles(title, url, published_at, sources(title, type))')
+    .select('article_id, summary_text, articles(title, url, published_at, image_urls, sources(title, type))')
     .eq('article_id', articleId)
     .maybeSingle();
   if (error) throw error;
