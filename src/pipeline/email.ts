@@ -15,7 +15,9 @@ function isContentImage(tag: string, src: string): boolean {
   if (width === 1 || height === 1) return false;             // tracking pixel
   if (!src.includes('substackcdn.com/image/')) return false; // only CDN content images
   if (/[/,](c_fill|g_face|g_auto)\b/.test(src)) return false; // avatar/crop transforms
-  if (/(\/profile\/|\/pub\/|logo|icon|button|favicon|avatars)/i.test(src)) return false;
+  let decoded = src;
+  try { decoded = decodeURIComponent(src); } catch { /* malformed escape: keep raw src */ }
+  if (/(\/profile\/|\/pub\/|\/avatars\/|logo|icon|button|favicon)/i.test(decoded)) return false;
   const w = /[/,]w_(\d+)/.exec(src);
   if (w && Number(w[1]) < 400) return false;                 // too small to be a chart
   return true;

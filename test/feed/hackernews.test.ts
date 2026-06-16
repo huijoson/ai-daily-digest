@@ -25,4 +25,9 @@ describe('parseHackerNewsStories', () => {
     const out = parseHackerNewsStories(items);
     expect(out[0].publishedAt).toBe('2025-06-10T10:00:00.000Z');
   });
+
+  it('does not set imageUrls (text-only source)', () => {
+    const out = parseHackerNewsStories([{ id: 1, title: 'A', url: 'https://a', time: 1700000000, type: 'story' }]);
+    expect(out[0].imageUrls).toBeUndefined();
+  });
 });

@@ -77,4 +77,8 @@ describe('parseRssFeed', () => {
   it('throws on a non-Atom <feed> document (no Atom xmlns)', () => {
     expect(() => parseRssFeed('<feed><entry/></feed>')).toThrow('Unrecognized');
   });
+
+  it('does not set imageUrls (text-only source)', () => {
+    expect(parseRssFeed(RSS2)[0].imageUrls).toBeUndefined();
+  });
 });
