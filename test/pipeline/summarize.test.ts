@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSummaryPrompt, parseGeminiResponse, GEMINI_MODEL, createGeminiSummarizer, buildGeminiContents } from '../../src/pipeline/summarize';
+import { buildSummaryPrompt, parseGeminiResponse, GEMINI_MODEL, createGeminiSummarizer, buildGeminiContents, supportedImageMime } from '../../src/pipeline/summarize';
 
 describe('buildSummaryPrompt', () => {
   it('includes the title and url', () => {
@@ -197,5 +197,61 @@ describe('createGeminiSummarizer multimodal', () => {
     expect(r.text).toBe('sum');
     expect(bodies).toHaveLength(2); // tried multimodal, then text-only
     expect(bodies[1].contents[0].parts.some((p: any) => p.inline_data)).toBe(false);
+  });
+
+  it('caps inline image parts at MAX_ARTICLE_IMAGES', async () => {
+    let body: any;
+    const s = createGeminiSummarizer({
+      apiKey: 'K',
+      httpPostJson: async (_u, b) => { body = b; return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: 'sum' }] } }] }) } as any; },
+      fetchImage: async () => ({ mimeType: 'image/png', base64: 'AAA' }),
+    });
+    const many = Array.from({ length: MAX_ARTICLE_IMAGES + 3 }, (_, i) => `u${i}`);
+    await s({ title: 't', url: 'u', content: 'c', sourceType: 'email', imageUrls: many });
+    expect(body.contents[0].parts.filter((p: any) => p.inline_data)).toHaveLength(MAX_ARTICLE_IMAGES);
+  });
+
+  it('multimodal prompt tells the model figures are attached', async () => {
+    let body: any;
+    const s = createGeminiSummarizer({
+      apiKey: 'K',
+      httpPostJson: async (_u, b) => { body = b; return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: 'sum' }] } }] }) } as any; },
+      fetchImage: async () => ({ mimeType: 'image/png', base64: 'AAA' }),
+    });
+    await s({ title: 't', url: 'u', content: 'c', sourceType: 'email', imageUrls: ['a'] });
+    const text = body.contents[0].parts[0].text.toLowerCase();
+    expect(text).toContain('attached');
+    expect(text).toContain('figures');
+  });
+
+  it('text-only fallback prompt omits the figures instruction', async () => {
+    const bodies: any[] = [];
+    const s = createGeminiSummarizer({
+      apiKey: 'K',
+      httpPostJson: async (_u, b) => {
+        bodies.push(b);
+        const multimodal = (b as any).contents[0].parts.some((p: any) => p.inline_data);
+        if (multimodal) return { ok: false, status: 400, json: async () => ({}) } as any;
+        return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: 'sum' }] } }] }) } as any;
+      },
+      fetchImage: async () => ({ mimeType: 'image/png', base64: 'AAA' }),
+    });
+    await s({ title: 't', url: 'u', content: 'c', sourceType: 'email', imageUrls: ['a'] });
+    expect(bodies[1].contents[0].parts[0].text.toLowerCase()).not.toContain('attached');
+  });
+});
+
+describe('supportedImageMime', () => {
+  it('accepts png/jpeg/webp and strips parameters/case', () => {
+    expect(supportedImageMime('image/png')).toBe('image/png');
+    expect(supportedImageMime('image/jpeg; charset=utf-8')).toBe('image/jpeg');
+    expect(supportedImageMime('IMAGE/WEBP')).toBe('image/webp');
+  });
+  it('rejects unsupported or missing types', () => {
+    expect(supportedImageMime('image/avif')).toBe(null);
+    expect(supportedImageMime('image/gif')).toBe(null);
+    expect(supportedImageMime('application/octet-stream')).toBe(null);
+    expect(supportedImageMime(null)).toBe(null);
+    expect(supportedImageMime('')).toBe(null);
   });
 });

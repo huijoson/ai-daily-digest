@@ -4,6 +4,15 @@ import { MAX_ARTICLE_IMAGES } from './constants';
 
 export const GEMINI_MODEL = 'gemini-2.5-flash';
 
+const SUPPORTED_IMAGE_MIME = ['image/png', 'image/jpeg', 'image/webp'];
+
+/** Normalize an HTTP Content-Type to a Gemini-supported image MIME, or null. */
+export function supportedImageMime(contentType: string | null | undefined): string | null {
+  if (!contentType) return null;
+  const mime = contentType.split(';')[0].trim().toLowerCase();
+  return SUPPORTED_IMAGE_MIME.includes(mime) ? mime : null;
+}
+
 export function buildSummaryPrompt(
   input: { title: string; url: string; content: string | null },
   mode: 'brief' | 'analysis' = 'brief',
