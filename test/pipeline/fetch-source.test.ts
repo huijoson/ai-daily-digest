@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { fetchSource } from '../../src/pipeline/fetch-source';
+import { fetchSource, filterRecentArticles } from '../../src/pipeline/fetch-source';
 import type { SourceRow } from '../../src/pipeline/types';
+import type { ParsedArticle } from '../../src/feed/types';
 
 const RSS = `<?xml version="1.0"?>
 <rss version="2.0"><channel><title>X</title>
@@ -30,8 +31,25 @@ describe('fetchSource', () => {
       if (url.includes('/item/12')) return JSON.stringify({ id: 12, title: 'B', time: 1700000001, type: 'story' });
       throw new Error('unexpected url ' + url);
     };
-    const out = await fetchSource(source, httpGet);
+    const out = await fetchSource(source, httpGet, 1700000002000);
     expect(out.map((a) => a.guid)).toEqual(['hn:11', 'hn:12']);
     expect(out[1].url).toBe('https://news.ycombinator.com/item?id=12');
+  });
+});
+
+const art = (guid: string, publishedAt: string | null): ParsedArticle => ({ guid, title: 't', url: 'u', publishedAt });
+
+describe('filterRecentArticles', () => {
+  const now = new Date('2026-06-16T12:00:00.000Z').getTime();
+  const DAY = 24 * 60 * 60 * 1000;
+  it('keeps articles within the window and drops older ones', () => {
+    const out = filterRecentArticles(
+      [art('recent', '2026-06-16T06:00:00.000Z'), art('old', '2026-06-14T06:00:00.000Z')],
+      now, DAY,
+    );
+    expect(out.map((a) => a.guid)).toEqual(['recent']);
+  });
+  it('drops articles with no published date', () => {
+    expect(filterRecentArticles([art('x', null)], now, DAY)).toEqual([]);
   });
 });
