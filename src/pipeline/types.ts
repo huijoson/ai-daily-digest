@@ -13,6 +13,7 @@ export interface PendingSummary {
   title: string;
   url: string;
   content: string | null;
+  sourceType: SourceType;
 }
 
 export interface SummaryResult {
@@ -25,6 +26,7 @@ export type Summarizer = (input: {
   title: string;
   url: string;
   content: string | null;
+  sourceType: SourceType;
 }) => Promise<SummaryResult>;
 
 /** Minimal HTTP GET returning the response body as text. Injected for testability. */

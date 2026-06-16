@@ -27,6 +27,18 @@ export function mapFeedRow(row: any): FeedItem {
     url: article?.url ?? '',
     summary: row.summary_text ?? '',
     sourceTitle: source?.title ?? '',
+    sourceType: source?.type ?? 'rss',
     publishedAt: article?.published_at ?? null,
   };
+}
+
+export function groupFeed(items: FeedItem[]): { paid: FeedItem[]; hackerNews: FeedItem[] } {
+  const byTimeDesc = (a: FeedItem, b: FeedItem) => {
+    const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : -Infinity;
+    const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : -Infinity;
+    return tb - ta;
+  };
+  const paid = items.filter((i) => i.sourceType === 'email').sort(byTimeDesc);
+  const hackerNews = items.filter((i) => i.sourceType !== 'email').sort(byTimeDesc);
+  return { paid, hackerNews };
 }

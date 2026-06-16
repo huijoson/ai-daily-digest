@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, SectionList, Text, View } from 'react-native';
 import { Link, Stack } from 'expo-router';
 import { listTodaySummaries } from '../src/client/data';
-import { formatRelativeTime } from '../src/client/feed';
+import { formatRelativeTime, groupFeed } from '../src/client/feed';
 import { supabase } from '../src/client/supabase';
 import type { FeedItem } from '../src/client/types';
 
@@ -18,6 +18,12 @@ export default function Today() {
 
   if (loading) return <ActivityIndicator style={{ marginTop: 40 }} />;
 
+  const { paid, hackerNews } = groupFeed(items);
+  const sections = [
+    { title: '📧 付費訂閱', data: paid },
+    { title: '🟠 Hacker News', data: hackerNews },
+  ].filter((s) => s.data.length > 0);
+
   return (
     <>
       <Stack.Screen
@@ -31,18 +37,21 @@ export default function Today() {
           ),
         }}
       />
-      <FlatList
+      <SectionList
         contentContainerStyle={{ padding: 16 }}
-        data={items}
+        sections={sections}
         keyExtractor={(i) => i.articleId}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
         ListEmptyComponent={<Text style={{ color: '#888' }}>Nothing new today. Pull to refresh.</Text>}
+        renderSectionHeader={({ section }) => (
+          <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 16, marginBottom: 8 }}>{section.title}</Text>
+        )}
         ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
         renderItem={({ item }) => (
           <Link href={`/article/${item.articleId}`} asChild>
             <Pressable>
               <Text style={{ fontSize: 16, fontWeight: '600' }}>{item.title}</Text>
-              <Text numberOfLines={3} style={{ color: '#333', marginTop: 4 }}>{item.summary}</Text>
+              <Text numberOfLines={4} style={{ color: '#333', marginTop: 4 }}>{item.summary}</Text>
               <Text style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
                 {item.sourceTitle} · {formatRelativeTime(item.publishedAt, Date.now())}
               </Text>

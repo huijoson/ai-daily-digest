@@ -19,6 +19,19 @@ describe('buildSummaryPrompt', () => {
     const p = buildSummaryPrompt({ title: 'T', url: 'u', content: 'c' });
     expect(p.toLowerCase()).toContain('same language');
   });
+
+  it('brief mode (default) asks for 2-3 sentences', () => {
+    const p = buildSummaryPrompt({ title: 'T', url: 'u', content: 'c' });
+    expect(p).toContain('2-3');
+    expect(p.toLowerCase()).toContain('same language');
+  });
+
+  it('analysis mode asks for bullets and an analysis paragraph', () => {
+    const p = buildSummaryPrompt({ title: 'T', url: 'u', content: 'c' }, 'analysis');
+    expect(p.toLowerCase()).toContain('bullet');
+    expect(p.toLowerCase()).toContain('analysis');
+    expect(p.toLowerCase()).toContain('same language');
+  });
 });
 
 describe('parseGeminiResponse', () => {
@@ -56,7 +69,7 @@ describe('createGeminiSummarizer', () => {
         return okResponse as any;
       },
     });
-    const result = await summarize({ title: 'T', url: 'u', content: 'c' });
+    const result = await summarize({ title: 'T', url: 'u', content: 'c', sourceType: 'hackernews' });
     expect(result).toEqual({ text: 'Summed.', model: 'gemini-2.5-flash' });
     expect(calls[0].url).toContain('gemini-2.5-flash');
     expect(calls[0].url).toContain('KEY');
@@ -67,6 +80,20 @@ describe('createGeminiSummarizer', () => {
       apiKey: 'KEY',
       httpPostJson: async () => ({ ok: false, status: 429, json: async () => ({}) }) as any,
     });
-    await expect(summarize({ title: 'T', url: 'u', content: 'c' })).rejects.toThrow('429');
+    await expect(summarize({ title: 'T', url: 'u', content: 'c', sourceType: 'hackernews' })).rejects.toThrow('429');
+  });
+
+  it('uses analysis mode for email sources', async () => {
+    let sentBody: any;
+    const summarize = createGeminiSummarizer({
+      apiKey: 'KEY',
+      httpPostJson: async (_url, body) => {
+        sentBody = body;
+        return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }) } as any;
+      },
+    });
+    await summarize({ title: 'T', url: 'u', content: 'c', sourceType: 'email' });
+    const promptText = sentBody.contents[0].parts[0].text.toLowerCase();
+    expect(promptText).toContain('bullet');
   });
 });
