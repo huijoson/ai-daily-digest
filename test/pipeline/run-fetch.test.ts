@@ -55,4 +55,15 @@ describe('runFetch', () => {
     expect(inserted['good'].map((a) => a.guid)).toEqual(['g']);
     expect(res).toEqual({ inserted: 1, errors: 1 });
   });
+
+  it('skips email-type sources (no HTTP fetch attempted)', async () => {
+    const src: SourceRow = { id: 'e1', type: 'email', feedUrl: 'a@b.com' };
+    const { db, inserted } = makeDb([src]);
+    let called = false;
+    const httpGet = async () => { called = true; return RSS('x'); };
+    const res = await runFetch({ db, httpGet });
+    expect(called).toBe(false);
+    expect(inserted['e1']).toBeUndefined();
+    expect(res).toEqual({ inserted: 0, errors: 0 });
+  });
 });
