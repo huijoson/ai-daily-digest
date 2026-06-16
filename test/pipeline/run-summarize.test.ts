@@ -60,4 +60,12 @@ describe('runSummarize', () => {
     await runSummarize({ db, summarize, batchSize: 10 });
     expect(seen).toBe('email');
   });
+
+  it('forwards imageUrls to the summarizer', async () => {
+    const { db } = makeDb([{ articleId: 'a1', title: 't', url: 'u', content: 'c', sourceType: 'email', imageUrls: ['i1', 'i2'] }]);
+    let seen: string[] | undefined;
+    const summarize: Summarizer = async (input) => { seen = input.imageUrls; return { text: 's', model: 'm' }; };
+    await runSummarize({ db, summarize, batchSize: 10 });
+    expect(seen).toEqual(['i1', 'i2']);
+  });
 });
