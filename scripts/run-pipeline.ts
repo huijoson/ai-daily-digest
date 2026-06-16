@@ -15,7 +15,7 @@ import { simpleParser } from 'mailparser';
 import { runFetch } from '../src/pipeline/run-fetch';
 import { runSummarize } from '../src/pipeline/run-summarize';
 import { runEmailIngest } from '../src/pipeline/email';
-import { createGeminiSummarizer } from '../src/pipeline/summarize';
+import { createGeminiSummarizer, supportedImageMime } from '../src/pipeline/summarize';
 import type { DbClient, HttpGet, PendingSummary, SourceRow, EmailFetcher, EmailMessage } from '../src/pipeline/types';
 import type { ParsedArticle } from '../src/feed/types';
 
@@ -120,13 +120,15 @@ const httpGet: HttpGet = async (u) => {
   return res.text();
 };
 
-const SUPPORTED_IMAGE_MIME = ['image/png', 'image/jpeg', 'image/webp'];
 const fetchImage = async (url: string): Promise<{ mimeType: string; base64: string } | null> => {
   try {
-    const res = await fetch(url, { headers: { Accept: 'image/png,image/jpeg,image/webp' } });
+    const res = await fetch(url, {
+      headers: { Accept: 'image/png,image/jpeg,image/webp' },
+      signal: AbortSignal.timeout(10000),
+    });
     if (!res.ok) return null;
-    const mimeType = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-    if (!SUPPORTED_IMAGE_MIME.includes(mimeType)) return null;
+    const mimeType = supportedImageMime(res.headers.get('content-type'));
+    if (!mimeType) return null;
     const base64 = Buffer.from(await res.arrayBuffer()).toString('base64');
     return { mimeType, base64 };
   } catch {
