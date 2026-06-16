@@ -35,6 +35,7 @@ export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbC
           url: a.url,
           published_at: a.publishedAt,
           content: a.content ?? null,
+          image_urls: a.imageUrls ?? null,
         })))
         .select('id');
       if (error) throw error;
@@ -53,7 +54,7 @@ export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbC
     },
 
     async listPendingSummaries(limit: number): Promise<PendingSummary[]> {
-      const sel = 'article_id, articles!inner(title, url, content, sources!inner(type))';
+      const sel = 'article_id, articles!inner(title, url, content, image_urls, sources!inner(type))';
       const mapRow = (r: any): PendingSummary => {
         const article = Array.isArray(r.articles) ? r.articles[0] : r.articles;
         const source = Array.isArray(article?.sources) ? article.sources[0] : article?.sources;
@@ -62,6 +63,7 @@ export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbC
           title: article?.title ?? '',
           url: article?.url ?? '',
           content: article?.content ?? null,
+          imageUrls: article?.image_urls ?? [],
           sourceType: source?.type ?? 'rss',
         };
       };
