@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parseSubstackEmail } from '../../src/pipeline/email';
-import type { EmailMessage } from '../../src/pipeline/types';
+import { parseSubstackEmail, runEmailIngest } from '../../src/pipeline/email';
+import type { EmailMessage, DbClient, SourceRow } from '../../src/pipeline/types';
+import type { ParsedArticle } from '../../src/feed/types';
 
 const base: EmailMessage = {
   subject: '  The Big Post  ',
@@ -33,5 +34,64 @@ describe('parseSubstackEmail', () => {
     const a = parseSubstackEmail({ ...base, date: null, text: '   ' });
     expect(a.publishedAt).toBe(null);
     expect(a.content).toBe(null);
+  });
+});
+
+function makeDb(sources: SourceRow[], existing: Record<string, string[]> = {}) {
+  const inserted: Record<string, ParsedArticle[]> = {};
+  const errors: Record<string, string | null> = {};
+  const db: DbClient = {
+    listActiveSources: async () => sources,
+    existingGuids: async (id) => existing[id] ?? [],
+    insertNewArticles: async (id, arts) => { inserted[id] = arts; return arts.length; },
+    recordSourceError: async (id, err) => { errors[id] = err; },
+    listPendingSummaries: async () => [],
+    saveSummary: async () => {},
+    markSummaryFailed: async () => {},
+  };
+  return { db, inserted, errors };
+}
+
+const email = (messageId: string) => ({
+  subject: 'T', html: '<a href="https://x.substack.com/p/slug">l</a>',
+  text: 'body', messageId, date: null,
+});
+
+describe('runEmailIngest', () => {
+  it('ingests, dedups, and inserts articles for email sources only', async () => {
+    const sources: SourceRow[] = [
+      { id: 'e1', type: 'email', feedUrl: 'fomosoc@substack.com' },
+      { id: 'r1', type: 'rss', feedUrl: 'https://x/feed' },
+    ];
+    const { db, inserted, errors } = makeDb(sources, { e1: ['<old@s>'] });
+    const fetchEmails = async (sender: string) => {
+      expect(sender).toBe('fomosoc@substack.com');
+      return [email('<old@s>'), email('<new@s>')]; // one already seen
+    };
+    const res = await runEmailIngest({ db, fetchEmails });
+    expect(inserted['e1'].map((a) => a.guid)).toEqual(['<new@s>']); // deduped
+    expect(inserted['r1']).toBeUndefined(); // rss source untouched
+    expect(errors['e1']).toBe(null);
+    expect(res).toEqual({ inserted: 1, errors: 0 });
+  });
+
+  it('records last_error and continues when a source fails', async () => {
+    const sources: SourceRow[] = [{ id: 'e1', type: 'email', feedUrl: 'a@b.com' }];
+    const { db, errors } = makeDb(sources);
+    const fetchEmails = async () => { throw new Error('imap down'); };
+    const res = await runEmailIngest({ db, fetchEmails });
+    expect(errors['e1']).toContain('imap down');
+    expect(res).toEqual({ inserted: 0, errors: 1 });
+  });
+
+  it('skips an email source with no sender (feedUrl null)', async () => {
+    const sources: SourceRow[] = [{ id: 'e1', type: 'email', feedUrl: null }];
+    const { db, errors } = makeDb(sources);
+    let called = false;
+    const fetchEmails = async () => { called = true; return []; };
+    const res = await runEmailIngest({ db, fetchEmails });
+    expect(called).toBe(false);
+    expect(errors['e1']).toContain('no sender');
+    expect(res).toEqual({ inserted: 0, errors: 1 });
   });
 });

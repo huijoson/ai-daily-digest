@@ -1,4 +1,4 @@
-export type SourceType = 'rss' | 'youtube' | 'hackernews';
+export type SourceType = 'rss' | 'youtube' | 'hackernews' | 'email';
 
 export interface ParsedArticle {
   guid: string;
