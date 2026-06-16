@@ -18,7 +18,7 @@ function makeDb(pending: PendingSummary[]) {
   return { db, saved, failed, getLimit: () => requestedLimit };
 }
 
-const p = (articleId: string): PendingSummary => ({ articleId, title: 't', url: 'u', content: 'c' });
+const p = (articleId: string): PendingSummary => ({ articleId, title: 't', url: 'u', content: 'c', sourceType: 'hackernews' });
 
 describe('runSummarize', () => {
   it('summarizes each pending article and marks it done', async () => {
@@ -51,5 +51,13 @@ describe('runSummarize', () => {
     const res = await runSummarize({ db, summarize, batchSize: 2 });
     expect(getLimit()).toBe(2);
     expect(res.done).toBe(2);
+  });
+
+  it('forwards sourceType to the summarizer', async () => {
+    const { db } = makeDb([{ articleId: 'a1', title: 't', url: 'u', content: 'c', sourceType: 'email' }]);
+    let seen: string | undefined;
+    const summarize: Summarizer = async (input) => { seen = input.sourceType; return { text: 's', model: 'm' }; };
+    await runSummarize({ db, summarize, batchSize: 10 });
+    expect(seen).toBe('email');
   });
 });
