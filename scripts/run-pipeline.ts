@@ -75,11 +75,13 @@ const db: DbClient = {
     const sel = 'article_id, articles!inner(title, url, content, sources!inner(type))';
     const mapRow = (r: any): PendingSummary => {
       const article = one<any>(r.articles);
+      const source = one<any>(article?.sources);
       return {
         articleId: r.article_id,
         title: article?.title ?? '',
         url: article?.url ?? '',
         content: article?.content ?? null,
+        sourceType: source?.type ?? 'rss',
       };
     };
     // Prioritize paid email content: take email-source pending first, then the rest.
