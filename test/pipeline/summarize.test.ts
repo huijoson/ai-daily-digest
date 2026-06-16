@@ -19,6 +19,19 @@ describe('buildSummaryPrompt', () => {
     const p = buildSummaryPrompt({ title: 'T', url: 'u', content: 'c' });
     expect(p.toLowerCase()).toContain('same language');
   });
+
+  it('brief mode (default) asks for 2-3 sentences', () => {
+    const p = buildSummaryPrompt({ title: 'T', url: 'u', content: 'c' });
+    expect(p).toContain('2-3');
+    expect(p.toLowerCase()).toContain('same language');
+  });
+
+  it('analysis mode asks for bullets and an analysis paragraph', () => {
+    const p = buildSummaryPrompt({ title: 'T', url: 'u', content: 'c' }, 'analysis');
+    expect(p.toLowerCase()).toContain('bullet');
+    expect(p.toLowerCase()).toContain('analysis');
+    expect(p.toLowerCase()).toContain('same language');
+  });
 });
 
 describe('parseGeminiResponse', () => {
