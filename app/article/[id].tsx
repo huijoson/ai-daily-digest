@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, Linking, ScrollView, Text } from 'react-native';
+import { ActivityIndicator, Button, Image, Linking, ScrollView, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { getFeedItem } from '../../src/client/data';
 import type { FeedItem } from '../../src/client/types';
@@ -21,6 +21,14 @@ export default function Article() {
       <Text style={{ fontSize: 20, fontWeight: '700' }}>{item.title}</Text>
       <Text style={{ color: '#888' }}>{item.sourceTitle}</Text>
       <Text style={{ fontSize: 16, lineHeight: 24 }}>{item.summary}</Text>
+      {item.imageUrls.map((uri) => (
+        <Image
+          key={uri}
+          source={{ uri }}
+          resizeMode="contain"
+          style={{ width: '100%', height: 240, backgroundColor: '#f2f2f2', borderRadius: 8 }}
+        />
+      ))}
       <Button title="Open original" onPress={() => Linking.openURL(item.url)} />
     </ScrollView>
   );
