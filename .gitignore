@@ -9,3 +9,7 @@ dist/
 
 # local agent tooling (not part of the app)
 .agents/
+
+# generated native projects (expo prebuild / CNG)
+/ios/
+/android/
