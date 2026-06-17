@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, SectionList, Text, View } from 'react-native';
 import { Link, Stack } from 'expo-router';
-import { listTodaySummaries } from '../src/client/data';
+import { listDigest } from '../src/client/data';
 import { formatRelativeTime, groupFeed } from '../src/client/feed';
 import { supabase } from '../src/client/supabase';
 import type { FeedItem } from '../src/client/types';
@@ -12,7 +12,7 @@ export default function Today() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    try { setItems(await listTodaySummaries()); } finally { setLoading(false); setRefreshing(false); }
+    try { setItems(await listDigest()); } finally { setLoading(false); setRefreshing(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
