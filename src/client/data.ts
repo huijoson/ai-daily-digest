@@ -39,17 +39,33 @@ export async function removeSource(id: string): Promise<void> {
 
 // ── Feed ─────────────────────────────────────────────────────────────────────
 
-/** Today's completed summaries, newest first. RLS limits rows to the current user. */
-export async function listTodaySummaries(): Promise<FeedItem[]> {
-  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-  const { data, error } = await supabase
+/**
+ * Feed items for the digest: ALL completed paid (email) summaries (no time window,
+ * so weekly paid posts persist) plus today's completed non-email summaries.
+ * RLS limits rows to the current user. The screen's groupFeed re-splits + sorts.
+ */
+export async function listDigest(): Promise<FeedItem[]> {
+  const sel = 'article_id, summary_text, articles!inner(title, url, published_at, image_urls, sources!inner(title, type))';
+
+  const paidQ = await supabase
     .from('summaries')
-    .select('article_id, summary_text, articles(title, url, published_at, image_urls, sources(title, type))')
+    .select(sel)
     .eq('status', 'done')
+    .eq('articles.sources.type', 'email')
+    .order('updated_at', { ascending: false });
+  if (paidQ.error) throw paidQ.error;
+
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const todayQ = await supabase
+    .from('summaries')
+    .select(sel)
+    .eq('status', 'done')
+    .neq('articles.sources.type', 'email')
     .gte('updated_at', startOfToday.toISOString())
     .order('updated_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map(mapFeedRow);
+  if (todayQ.error) throw todayQ.error;
+
+  return [...(paidQ.data ?? []), ...(todayQ.data ?? [])].map(mapFeedRow);
 }
 
 export async function getFeedItem(articleId: string): Promise<FeedItem | null> {
