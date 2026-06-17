@@ -72,6 +72,39 @@ npm start
 # or scan the QR code with Expo Go
 ```
 
+### Installing on iOS
+
+The app is configured as an Expo managed iOS app with bundle identifier
+`com.yuhan.aidailydigest` in `app.json`.
+
+For quick testing, use Expo Go:
+
+```bash
+npm start
+# then press i for the iOS simulator, or scan the QR code from Expo Go
+```
+
+To create an installable iOS build, use EAS:
+
+```bash
+npx eas-cli login
+npx eas-cli init
+npm run build:ios:simulator # install on an iOS simulator
+npm run build:ios:preview   # install on registered physical devices
+```
+
+Physical-device installs require an Apple Developer account. EAS will guide you
+through creating or selecting the Apple signing credentials and registering test
+devices for the `preview` profile. For App Store/TestFlight distribution, run:
+
+```bash
+npm run build:ios:production
+npx eas-cli submit --platform ios --profile production
+```
+
+If you change Apple teams or publish under a different organization, update
+`expo.ios.bundleIdentifier` before creating credentials.
+
 ### Architecture notes
 
 - Pure client logic lives in `src/client/` and is Vitest-tested.
