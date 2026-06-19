@@ -4,7 +4,6 @@ import { mapFeedRow } from './feed';
 import type { HttpGet } from '../pipeline/types';
 import type { SourceListItem, FeedItem } from './types';
 import { HN_MAX_AGE_MS } from '../pipeline/constants';
-import { MAX_PAID_ITEMS } from './constants';
 
 // ── Sources ──────────────────────────────────────────────────────────────────
 
@@ -42,9 +41,12 @@ export async function removeSource(id: string): Promise<void> {
 // ── Feed ─────────────────────────────────────────────────────────────────────
 
 /**
- * Feed items for the digest: ALL completed paid (email) summaries (no time window,
- * so weekly paid posts persist) plus today's completed non-email summaries.
- * RLS limits rows to the current user. The screen's groupFeed re-splits + sorts.
+ * Feed items for the digest: ALL completed paid (email) summaries from every email
+ * source (no time window, so weekly paid posts persist) plus today's completed
+ * non-email summaries. RLS limits rows to the current user. The screen's
+ * buildFeedSections groups these into per-source sections and caps each to
+ * MAX_PAID_ITEMS — so the query must NOT cap email rows globally, or a second
+ * newsletter would be starved.
  */
 export async function listDigest(): Promise<FeedItem[]> {
   const sel = 'article_id, summary_text, articles!inner(title, url, published_at, image_urls, sources!inner(title, type))';
@@ -54,8 +56,7 @@ export async function listDigest(): Promise<FeedItem[]> {
     .select(sel)
     .eq('status', 'done')
     .eq('articles.sources.type', 'email')
-    .order('updated_at', { ascending: false })
-    .limit(MAX_PAID_ITEMS);
+    .order('published_at', { referencedTable: 'articles', ascending: false });
   if (paidQ.error) throw paidQ.error;
 
   const todayQ = await supabase
