@@ -1,4 +1,6 @@
 import type { FeedItem } from './types';
+import { MAX_PAID_ITEMS } from './constants';
+import { HN_MAX_AGE_MS } from '../pipeline/constants';
 
 export function formatRelativeTime(iso: string | null, now: number): string {
   if (!iso) return '';
@@ -33,13 +35,21 @@ export function mapFeedRow(row: any): FeedItem {
   };
 }
 
-export function groupFeed(items: FeedItem[]): { paid: FeedItem[]; hackerNews: FeedItem[] } {
+export function groupFeed(items: FeedItem[], now: number): { paid: FeedItem[]; hackerNews: FeedItem[] } {
   const byTimeDesc = (a: FeedItem, b: FeedItem) => {
     const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : -Infinity;
     const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : -Infinity;
     return tb - ta;
   };
-  const paid = items.filter((i) => i.sourceType === 'email').sort(byTimeDesc);
-  const hackerNews = items.filter((i) => i.sourceType !== 'email').sort(byTimeDesc);
+  const paid = items.filter((i) => i.sourceType === 'email').sort(byTimeDesc).slice(0, MAX_PAID_ITEMS);
+  const hackerNews = items
+    .filter((i) => i.sourceType !== 'email')
+    .filter((i) => {
+      if (i.sourceType !== 'hackernews') return true; // only HN is recency-bounded
+      if (!i.publishedAt) return false;
+      const t = new Date(i.publishedAt).getTime();
+      return !Number.isNaN(t) && now - t <= HN_MAX_AGE_MS;
+    })
+    .sort(byTimeDesc);
   return { paid, hackerNews };
 }

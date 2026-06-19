@@ -3,6 +3,8 @@ import { prepareSource, mapSourceRow } from './sources';
 import { mapFeedRow } from './feed';
 import type { HttpGet } from '../pipeline/types';
 import type { SourceListItem, FeedItem } from './types';
+import { HN_MAX_AGE_MS } from '../pipeline/constants';
+import { MAX_PAID_ITEMS } from './constants';
 
 // ── Sources ──────────────────────────────────────────────────────────────────
 
@@ -52,17 +54,17 @@ export async function listDigest(): Promise<FeedItem[]> {
     .select(sel)
     .eq('status', 'done')
     .eq('articles.sources.type', 'email')
-    .order('updated_at', { ascending: false });
+    .order('updated_at', { ascending: false })
+    .limit(MAX_PAID_ITEMS);
   if (paidQ.error) throw paidQ.error;
 
-  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
   const todayQ = await supabase
     .from('summaries')
     .select(sel)
     .eq('status', 'done')
     .neq('articles.sources.type', 'email')
-    .gte('updated_at', startOfToday.toISOString())
-    .order('updated_at', { ascending: false });
+    .gte('articles.published_at', new Date(Date.now() - HN_MAX_AGE_MS).toISOString())
+    .order('published_at', { referencedTable: 'articles', ascending: false });
   if (todayQ.error) throw todayQ.error;
 
   return [...(paidQ.data ?? []), ...(todayQ.data ?? [])].map(mapFeedRow);

@@ -18,7 +18,7 @@ export default function Today() {
 
   if (loading) return <ActivityIndicator style={{ marginTop: 40 }} />;
 
-  const { paid, hackerNews } = groupFeed(items);
+  const { paid, hackerNews } = groupFeed(items, Date.now());
   const sections = [
     { title: '📧 付費訂閱', data: paid },
     { title: '🟠 Hacker News', data: hackerNews },

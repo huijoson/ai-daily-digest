@@ -3,7 +3,7 @@ import { createSupabaseDbClient } from '../_shared/db.ts';
 import { runSummarize } from '../../../src/pipeline/run-summarize.ts';
 import { createGeminiSummarizer, supportedImageMime } from '../../../src/pipeline/summarize.ts';
 
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 30;
 
 const fetchImage = async (url: string): Promise<{ mimeType: string; base64: string } | null> => {
   try {
