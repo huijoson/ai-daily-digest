@@ -84,18 +84,23 @@ SHALL be omitted. (The Hacker-News 24h bound is governed by the existing
 
 ### Requirement: Jump to a source
 The feed SHALL present a control listing the visible sources; selecting a source SHALL
-scroll the feed to that source's section, reliably on every supported platform (web and
-iOS), recovering when the target section is not yet measured. The control SHALL list
-exactly the visible sections, in the same order. Each control item SHALL provide a
-comfortable touch target (large enough to tap accurately on touch and click on web).
+scroll the feed to THAT source's section — to the tapped source's own position, on every
+supported platform (web and iOS), regardless of whether the section was already on screen.
+The control SHALL list exactly the visible sections, in the same order. Each control item
+SHALL provide a comfortable touch target (size plus `hitSlop` ≥ the ~44pt platform
+minimum), and adjacent items' touch areas SHALL NOT overlap.
 
-#### Scenario: Tapping a source scrolls to it
+#### Scenario: Tapping a source scrolls to that source
 - **WHEN** the user taps a source in the jump control
-- **THEN** the feed scrolls to the top of that source's section
+- **THEN** the feed scrolls to the top of THAT source's section
 
-#### Scenario: Scrolling to an off-screen section that is not yet measured
-- **WHEN** the user taps a source whose section is below the fold and not yet rendered/measured
-- **THEN** the feed still scrolls to that section (the control recovers from the initial scroll failure rather than doing nothing)
+#### Scenario: A later source does not land on the first section
+- **WHEN** the user taps a source other than the first (e.g. the second or third source) on iOS
+- **THEN** the feed scrolls to that source's section, NOT back to the first section
+
+#### Scenario: Scrolling to an off-screen section
+- **WHEN** the user taps a source whose section is below the fold
+- **THEN** the feed still scrolls to that section
 
 #### Scenario: Jump control matches the sections
 - **WHEN** the feed renders its sections
