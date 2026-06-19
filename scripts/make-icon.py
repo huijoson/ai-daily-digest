@@ -1,21 +1,30 @@
 #!/usr/bin/env python3
-"""Author the iOS app icon for AI Daily Digest in the app's comic-lite style.
+"""Author the iOS app icon for AI Daily Digest (comic-lite, "newspaper on red").
 
-Renders a 1024x1024 opaque PNG to assets/icon.png using Pillow only (no SVG step).
-Motif: a comic "newspaper page" with a hard offset shadow, a red masthead, and bold
-ink headline bars + a small accent bar-chart — evoking a daily news digest with charts.
-Run: python3 scripts/make-icon.py
+Renders a 1024x1024 opaque PNG with Pillow and writes it to BOTH:
+  - assets/icon.png                     (for expo.icon)
+  - ios/.../AppIcon.appiconset/App-Icon-1024x1024@1x.png  (the prebuilt native catalog's
+    single referenced file; Xcode/actool derives the smaller sizes)
+
+Design: a red ground with a cream newspaper page (thick ink border + hard comic shadow),
+a red masthead, two bold ink headline bars, and a rising ink/ink/red bar-chart — bold,
+high-contrast, reads at small size. Run: python3 scripts/make-icon.py
 """
 import os
+import shutil
 from PIL import Image, ImageDraw
 
-# --- brand palette (from src/client/theme.ts) ---
+# --- brand palette (src/client/theme.ts) ---
 INK = (26, 26, 26)        # #1a1a1a
 PAPER = (253, 246, 236)   # #fdf6ec
-CARD = (255, 255, 255)    # #ffffff
 ACCENT = (230, 57, 70)    # #e63946
 
-OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "icon.png")
+HERE = os.path.dirname(__file__)
+OUT_ASSET = os.path.join(HERE, "..", "assets", "icon.png")
+OUT_IOS = os.path.join(
+    HERE, "..", "ios", "AIDailyDigest", "Images.xcassets",
+    "AppIcon.appiconset", "App-Icon-1024x1024@1x.png",
+)
 SIZE = 1024
 S = 4                      # supersample for smooth (anti-aliased) edges
 W = SIZE * S
@@ -25,60 +34,61 @@ def rr(d, box, radius, **kw):
     d.rounded_rectangle(box, radius=int(radius), **kw)
 
 
-def main():
-    img = Image.new("RGB", (W, W), PAPER)  # RGB = opaque, as iOS requires
+def render():
+    img = Image.new("RGB", (W, W), ACCENT)  # red ground; RGB = opaque (iOS requires)
     d = ImageDraw.Draw(img)
 
-    border = int(W * 0.026)
-    rad = int(W * 0.075)
-    m = int(W * 0.155)                      # outer margin
+    m = int(W * 0.135)
     page = [m, m, W - m, W - m]
+    rad = int(W * 0.085)
+    bw = int(W * 0.034)
+    off = int(W * 0.03)
 
-    # hard comic drop shadow (offset, no blur)
-    off = int(W * 0.034)
-    rr(d, [page[0] + off, page[1] + off, page[2] + off, page[3] + off], rad, fill=INK)
+    rr(d, [page[0] + off, page[1] + off, page[2] + off, page[3] + off], rad, fill=INK)  # hard shadow
+    rr(d, page, rad, fill=PAPER, outline=INK, width=bw)                                 # newspaper page
 
-    # newspaper page
-    rr(d, page, rad, fill=CARD, outline=INK, width=border)
-
-    pad = int(W * 0.052)
+    pad = int(W * 0.055)
     x0, y0, x1, y1 = page[0] + pad, page[1] + pad, page[2] - pad, page[3] - pad
-    inner_w = x1 - x0
-    thin = max(1, int(border * 0.62))
+    iw = x1 - x0
+    H = y1 - y0
 
-    # masthead (red bar) with two paper "title" ticks inside it
-    mast_h = int((y1 - y0) * 0.205)
-    rr(d, [x0, y0, x1, y0 + mast_h], mast_h * 0.30, fill=ACCENT, outline=INK, width=thin)
-    tick_h = int(mast_h * 0.16)
-    tick_y = y0 + (mast_h - tick_h) // 2
-    rr(d, [x0 + int(inner_w * 0.10), tick_y, x0 + int(inner_w * 0.58), tick_y + tick_h], tick_h * 0.5, fill=PAPER)
-    rr(d, [x0 + int(inner_w * 0.63), tick_y, x0 + int(inner_w * 0.90), tick_y + tick_h], tick_h * 0.5, fill=PAPER)
+    # bold red masthead (top ~21%)
+    mh = int(H * 0.21)
+    rr(d, [x0, y0, x1, y0 + mh], mh * 0.26, fill=ACCENT, outline=INK, width=int(bw * 0.7))
 
-    # headline bars (ink), decreasing width
-    bar_h = int((y1 - y0) * 0.072)
-    gap = int(bar_h * 0.95)
-    cy = y0 + mast_h + int(gap * 1.7)
-    for wf in (1.0, 0.86, 0.66):
-        rr(d, [x0, cy, x0 + int(inner_w * wf), cy + bar_h], bar_h * 0.42, fill=INK)
-        cy += bar_h + gap
+    # two thick ink headline bars
+    bh = int(H * 0.105)
+    h1 = y0 + mh + int(H * 0.075)
+    rr(d, [x0, h1, x0 + iw, h1 + bh], bh * 0.34, fill=INK)
+    h2 = h1 + bh + int(H * 0.05)
+    rr(d, [x0, h2, x0 + int(iw * 0.62), h2 + bh], bh * 0.34, fill=INK)
 
-    # accent mini bar-chart bottom-left (the app's multimodal "charts" nod)
-    chart_top = cy + int(gap * 0.6)
+    # rising bar-chart (ink, ink, red) — bottom band
+    ct = y0 + int(H * 0.58)
     base = y1
-    bw = int(inner_w * 0.115)
-    bgap = int(bw * 0.55)
-    heights = (0.42, 0.72, 1.0)
-    cols = (INK, INK, ACCENT)
+    band = base - ct
+    cbw = int(iw * 0.20)
+    cg = int((iw - 3 * cbw) / 2)
     bx = x0
-    for hf, col in zip(heights, cols):
-        bh = int((base - chart_top) * hf)
-        rr(d, [bx, base - bh, bx + bw, base], bw * 0.22, fill=col, outline=INK, width=thin)
-        bx += bw + bgap
+    for hf, col in ((0.52, INK), (0.78, INK), (1.0, ACCENT)):
+        h = int(band * hf)
+        rr(d, [bx, base - h, bx + cbw, base], cbw * 0.16, fill=col, outline=INK, width=int(bw * 0.6))
+        bx += cbw + cg
 
-    img = img.resize((SIZE, SIZE), Image.LANCZOS)
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    img.save(OUT, "PNG")
-    print(f"wrote {os.path.normpath(OUT)} ({SIZE}x{SIZE}, mode={img.mode})")
+    return img.resize((SIZE, SIZE), Image.LANCZOS)
+
+
+def main():
+    img = render()
+    os.makedirs(os.path.dirname(OUT_ASSET), exist_ok=True)
+    img.save(OUT_ASSET, "PNG")
+    print(f"wrote {os.path.normpath(OUT_ASSET)} ({SIZE}x{SIZE}, {img.mode})")
+    ios_dir = os.path.dirname(OUT_IOS)
+    if os.path.isdir(ios_dir):
+        shutil.copyfile(OUT_ASSET, OUT_IOS)
+        print(f"copied -> {os.path.normpath(OUT_IOS)}")
+    else:
+        print(f"(skipped iOS catalog: {os.path.normpath(ios_dir)} not present — run after prebuild)")
 
 
 if __name__ == "__main__":
