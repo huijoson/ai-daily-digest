@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatRelativeTime, mapFeedRow, buildFeedSections } from '../../src/client/feed';
+import { formatRelativeTime, mapFeedRow, buildFeedSections, neighbors } from '../../src/client/feed';
 import { MAX_PAID_ITEMS } from '../../src/client/constants';
 import { HN_MAX_AGE_MS } from '../../src/pipeline/constants';
 import type { FeedItem } from '../../src/client/types';
@@ -161,5 +161,35 @@ describe('buildFeedSections', () => {
     expect(typeof s.key).toBe('string');
     expect(typeof s.title).toBe('string');
     expect(Array.isArray(s.data)).toBe(true);
+  });
+});
+
+describe('neighbors', () => {
+  it('returns both neighbors for a middle element', () => {
+    expect(neighbors(['a', 'b', 'c'], 'b')).toEqual({ prevId: 'a', nextId: 'c' });
+  });
+
+  it('returns null prevId for the first element', () => {
+    expect(neighbors(['a', 'b', 'c'], 'a')).toEqual({ prevId: null, nextId: 'b' });
+  });
+
+  it('returns null nextId for the last element', () => {
+    expect(neighbors(['a', 'b', 'c'], 'c')).toEqual({ prevId: 'b', nextId: null });
+  });
+
+  it('returns both null when the id is not in the list', () => {
+    expect(neighbors(['a', 'b', 'c'], 'z')).toEqual({ prevId: null, nextId: null });
+  });
+
+  it('returns both null for a single-element list', () => {
+    expect(neighbors(['a'], 'a')).toEqual({ prevId: null, nextId: null });
+  });
+
+  it('returns both null for an empty list', () => {
+    expect(neighbors([], 'a')).toEqual({ prevId: null, nextId: null });
+  });
+
+  it('uses the first occurrence of a duplicated id', () => {
+    expect(neighbors(['a', 'b', 'a', 'c'], 'a')).toEqual({ prevId: null, nextId: 'b' });
   });
 });

@@ -15,6 +15,24 @@ export function formatRelativeTime(iso: string | null, now: number): string {
   return `${Math.floor(hr / 24)}d ago`;
 }
 
+/**
+ * Find the prev/next neighbors of `currentId` within an ordered list of ids.
+ * Uses the first occurrence (indexOf). Returns both null when `currentId` is
+ * absent or when there are fewer than 2 ids to navigate between.
+ */
+export function neighbors(
+  ids: string[],
+  currentId: string,
+): { prevId: string | null; nextId: string | null } {
+  if (ids.length < 2) return { prevId: null, nextId: null };
+  const i = ids.indexOf(currentId);
+  if (i === -1) return { prevId: null, nextId: null };
+  return {
+    prevId: i > 0 ? ids[i - 1] : null,
+    nextId: i < ids.length - 1 ? ids[i + 1] : null,
+  };
+}
+
 function one<T>(v: T | T[] | null | undefined): T | undefined {
   if (v == null) return undefined;
   return Array.isArray(v) ? v[0] : v;
