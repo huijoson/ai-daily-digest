@@ -54,7 +54,7 @@ export default function Today() {
           <Link href={`/article/${item.articleId}`} asChild>
             <Pressable style={StyleSheet.flatten([t.comicCard, { padding: spacing.md }])}>
               <Text style={type.title}>{item.title}</Text>
-              <Text numberOfLines={4} style={[type.summary, { marginTop: spacing.xs }]}>{item.summary}</Text>
+              <Text numberOfLines={6} style={[type.summary, { marginTop: spacing.xs }]}>{item.summary}</Text>
               <Text style={[type.meta, { marginTop: spacing.sm }]}>
                 {item.sourceTitle} · {formatRelativeTime(item.publishedAt, Date.now())}
               </Text>
