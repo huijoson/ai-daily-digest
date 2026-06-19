@@ -58,15 +58,63 @@ first. The recency bound SHALL be keyed on the Hacker News source type, not on
 - **WHEN** a Hacker News item has no publish time
 - **THEN** it is not shown in the Hacker News section
 
-### Requirement: Paid section shows only the latest few posts
-The feed SHALL show at most the latest `MAX_PAID_ITEMS` (3) paid (email) summaries,
-ordered newest first; older paid posts SHALL be omitted from the feed.
+### Requirement: Per-source feed sections
+The feed SHALL group items into one section per source: each email newsletter as its
+own section (titled with its source) capped to `MAX_PAID_ITEMS` newest items, and
+Hacker News as a single section. Non-HN source sections SHALL be ordered by their
+newest item (descending) and the Hacker News section SHALL come last. Empty sections
+SHALL be omitted. (The Hacker-News 24h bound is governed by the existing
+"Hacker News section is limited to the last 24 hours" requirement, not restated here.)
 
-#### Scenario: At most three paid posts
-- **WHEN** more than three paid (email) summaries exist
-- **THEN** only the three most recent are shown in the paid section
+#### Scenario: Each email newsletter is its own section
+- **WHEN** items from two email newsletters (e.g. FOMO研究院 and 曼報 Pro) are present
+- **THEN** the feed shows a separate section for each, titled by that source, each newest-first and capped to `MAX_PAID_ITEMS`
 
-#### Scenario: Fewer than three paid posts
-- **WHEN** one or two paid summaries exist
-- **THEN** all of them are shown, newest first
+#### Scenario: A second newsletter is not starved by the first
+- **WHEN** one newsletter has many recent items and another has fewer
+- **THEN** each newsletter's section still shows its own latest items (the feed query supplies enough rows per source, not a single global cap)
+
+#### Scenario: Hacker News is one section, ordered last
+- **WHEN** Hacker News items are present alongside email sources
+- **THEN** Hacker News appears as a single section after the email sections
+
+#### Scenario: Empty sections are omitted
+- **WHEN** a source has no items to show
+- **THEN** no section is rendered for it
+
+### Requirement: Jump to a source
+The feed SHALL present a control listing the visible sources; selecting a source SHALL
+scroll the feed to that source's section. The control SHALL list exactly the visible
+sections, in the same order.
+
+#### Scenario: Tapping a source scrolls to it
+- **WHEN** the user taps a source in the jump control
+- **THEN** the feed scrolls to the top of that source's section
+
+#### Scenario: Jump control matches the sections
+- **WHEN** the feed renders its sections
+- **THEN** the jump control lists exactly those visible sections in the same order
+
+### Requirement: Previous/next navigation in the article view
+The article detail view SHALL let the user move to the previous and next article in the
+feed's display order. At the ends of the order, or when the current article's position
+is unknown, the unavailable direction SHALL be disabled or hidden rather than error.
+Navigating to an adjacent article SHALL show a loading state for the new article rather
+than leaving the previous article's content on screen.
+
+#### Scenario: Next goes to the following article
+- **WHEN** the user views an article with a following article in the feed order and taps Next
+- **THEN** the detail view loads and shows that following article
+
+#### Scenario: Previous goes to the preceding article
+- **WHEN** the user views an article with a preceding article and taps Previous
+- **THEN** the detail view loads and shows that preceding article
+
+#### Scenario: Ends of the list
+- **WHEN** the user views the first (or last) article in the order
+- **THEN** Previous (or Next) is disabled/hidden and nothing errors
+
+#### Scenario: Order unknown
+- **WHEN** the feed order is unavailable (e.g. the detail was opened directly)
+- **THEN** prev/next are disabled/hidden and the article still displays
 
