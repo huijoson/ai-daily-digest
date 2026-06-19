@@ -11,6 +11,8 @@ export const supabase = createClient(url, anonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
+    // PKCE: the magic link returns a ?code= that the app exchanges for a session.
+    flowType: 'pkce',
     // On web, let Supabase auto-complete the session from the redirect URL.
     // On native, the deep-link handler in app/_layout.tsx exchanges the code.
     detectSessionInUrl: Platform.OS === 'web',

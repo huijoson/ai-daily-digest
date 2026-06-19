@@ -4,6 +4,7 @@ import { Link, Stack } from 'expo-router';
 import { listDigest } from '../src/client/data';
 import { formatRelativeTime, groupFeed } from '../src/client/feed';
 import { supabase } from '../src/client/supabase';
+import { colors, spacing, styles as t, type } from '../src/client/theme';
 import type { FeedItem } from '../src/client/types';
 
 export default function Today() {
@@ -16,7 +17,7 @@ export default function Today() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <ActivityIndicator style={{ marginTop: 40 }} />;
+  if (loading) return <ActivityIndicator style={{ marginTop: 40 }} color={colors.accent} />;
 
   const { paid, hackerNews } = groupFeed(items, Date.now());
   const sections = [
@@ -25,40 +26,42 @@ export default function Today() {
   ].filter((s) => s.data.length > 0);
 
   return (
-    <>
+    <View style={t.screenBg}>
       <Stack.Screen
         options={{
           title: 'Today',
+          headerStyle: { backgroundColor: colors.paper },
+          headerTitleStyle: t.headerTitle,
           headerRight: () => (
             <View style={{ flexDirection: 'row', gap: 16 }}>
-              <Link href="/sources"><Text style={{ color: '#06f' }}>Sources</Text></Link>
-              <Text style={{ color: '#06f' }} onPress={() => supabase.auth.signOut()}>Sign out</Text>
+              <Link href="/sources"><Text style={{ color: colors.accent, fontWeight: '700' }}>Sources</Text></Link>
+              <Text style={{ color: colors.accent, fontWeight: '700' }} onPress={() => supabase.auth.signOut()}>Sign out</Text>
             </View>
           ),
         }}
       />
       <SectionList
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: spacing.lg }}
         sections={sections}
         keyExtractor={(i) => i.articleId}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
-        ListEmptyComponent={<Text style={{ color: '#888' }}>Nothing new today. Pull to refresh.</Text>}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />}
+        ListEmptyComponent={<Text style={{ color: colors.muted }}>Nothing new today. Pull to refresh.</Text>}
         renderSectionHeader={({ section }) => (
-          <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 16, marginBottom: 8 }}>{section.title}</Text>
+          <Text style={[t.sectionPill, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>{section.title}</Text>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         renderItem={({ item }) => (
           <Link href={`/article/${item.articleId}`} asChild>
-            <Pressable>
-              <Text style={{ fontSize: 16, fontWeight: '600' }}>{item.title}</Text>
-              <Text numberOfLines={4} style={{ color: '#333', marginTop: 4 }}>{item.summary}</Text>
-              <Text style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            <Pressable style={[t.comicCard, { padding: spacing.md }]}>
+              <Text style={type.title}>{item.title}</Text>
+              <Text numberOfLines={4} style={[type.summary, { marginTop: spacing.xs }]}>{item.summary}</Text>
+              <Text style={[type.meta, { marginTop: spacing.sm }]}>
                 {item.sourceTitle} · {formatRelativeTime(item.publishedAt, Date.now())}
               </Text>
             </Pressable>
           </Link>
         )}
       />
-    </>
+    </View>
   );
 }

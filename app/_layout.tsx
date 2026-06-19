@@ -3,10 +3,12 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import type { Session } from '@supabase/supabase-js';
+import { useFonts, Bangers_400Regular } from '@expo-google-fonts/bangers';
 import { supabase } from '../src/client/supabase';
 import { registerPushToken } from '../src/client/push';
 
 export default function RootLayout() {
+  useFonts({ Bangers_400Regular });
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const router = useRouter();
