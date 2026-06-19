@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, SectionList, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 import { Link, Stack } from 'expo-router';
 import { listDigest } from '../src/client/data';
 import { formatRelativeTime, groupFeed } from '../src/client/feed';
@@ -52,7 +52,7 @@ export default function Today() {
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         renderItem={({ item }) => (
           <Link href={`/article/${item.articleId}`} asChild>
-            <Pressable style={[t.comicCard, { padding: spacing.md }]}>
+            <Pressable style={StyleSheet.flatten([t.comicCard, { padding: spacing.md }])}>
               <Text style={type.title}>{item.title}</Text>
               <Text numberOfLines={4} style={[type.summary, { marginTop: spacing.xs }]}>{item.summary}</Text>
               <Text style={[type.meta, { marginTop: spacing.sm }]}>
