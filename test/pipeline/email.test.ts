@@ -41,6 +41,33 @@ describe('parseSubstackEmail', () => {
     const a = parseSubstackEmail({ ...base, html: `<p>x</p><img src="${chart}">` });
     expect(a.imageUrls).toEqual([chart]);
   });
+
+  it('keeps Mailchimp (mcusercontent.com) content images and drops the tracking pixel', () => {
+    const chart1 = 'https://mcusercontent.com/abc/images/chart1.png';
+    const chart2 = 'https://mcusercontent.com/abc/images/chart2.png';
+    const msg: EmailMessage = {
+      subject: '  曼報 Pro 週報  ',
+      html:
+        `<p>本週圖表</p>` +
+        `<img width="459" src="${chart1}">` +
+        `<img width="288" src="${chart2}">` +
+        `<img width="1" height="1" src="https://us.list-manage.com/track/open.php?x=1">`,
+      text: '  曼報內文。\n\n第二段。  ',
+      messageId: '<digest@manny-li.com>',
+      date: '2026-06-16T08:00:00.000Z',
+    };
+    const a = parseSubstackEmail(msg);
+    expect(a.imageUrls).toEqual([chart1, chart2]);
+    expect(a.url).toBe('');
+    expect(a.title).toBe('曼報 Pro 週報');
+    expect(a.content).toBe('曼報內文。\n\n第二段。');
+  });
+
+  it('drops a mcusercontent.com image whose path contains logo', () => {
+    const logo = 'https://mcusercontent.com/abc/images/logo.png';
+    const a = parseSubstackEmail({ ...base, html: `<p>x</p><img src="${logo}">` });
+    expect(a.imageUrls).toEqual([]);
+  });
 });
 
 function makeDb(sources: SourceRow[], existing: Record<string, string[]> = {}) {

@@ -13,7 +13,8 @@ function isContentImage(tag: string, src: string): boolean {
   const width = Number(/\bwidth\s*=\s*"?(\d+)"?/i.exec(tag)?.[1] ?? NaN);
   const height = Number(/\bheight\s*=\s*"?(\d+)"?/i.exec(tag)?.[1] ?? NaN);
   if (width === 1 || height === 1) return false;             // tracking pixel
-  if (!src.includes('substackcdn.com/image/')) return false; // only CDN content images
+  // only known content-image hosts: Substack CDN or Mailchimp (mcusercontent.com)
+  if (!src.includes('substackcdn.com/image/') && !host.endsWith('mcusercontent.com')) return false;
   if (/[/,](c_fill|g_face|g_auto)\b/.test(src)) return false; // avatar/crop transforms
   let decoded = src;
   try { decoded = decodeURIComponent(src); } catch { /* malformed escape: keep raw src */ }
