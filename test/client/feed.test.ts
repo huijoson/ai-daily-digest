@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatRelativeTime, mapFeedRow, buildFeedSections, neighbors, scrollFailureOffset } from '../../src/client/feed';
+import { formatRelativeTime, mapFeedRow, buildFeedSections, neighbors, sectionScrollTarget } from '../../src/client/feed';
 import { MAX_PAID_ITEMS } from '../../src/client/constants';
 import { HN_MAX_AGE_MS } from '../../src/pipeline/constants';
 import type { FeedItem } from '../../src/client/types';
@@ -194,24 +194,26 @@ describe('neighbors', () => {
   });
 });
 
-describe('scrollFailureOffset', () => {
-  it('multiplies averageItemLength by index', () => {
-    expect(scrollFailureOffset({ averageItemLength: 80, index: 5 })).toBe(400);
+describe('sectionScrollTarget', () => {
+  const m = new Map([['a', 0], ['b', 300], ['c', 620]]);
+
+  it('subtracts the inset from the measured offset', () => {
+    expect(sectionScrollTarget(m, 'c', 8)).toBe(612);
   });
 
-  it('returns 0 for a zero index', () => {
-    expect(scrollFailureOffset({ averageItemLength: 80, index: 0 })).toBe(0);
+  it('clamps to 0 instead of going negative', () => {
+    expect(sectionScrollTarget(m, 'a', 8)).toBe(0);
   });
 
-  it('returns 0 when averageItemLength is NaN', () => {
-    expect(scrollFailureOffset({ averageItemLength: NaN, index: 3 })).toBe(0);
+  it('returns 0 for a missing key', () => {
+    expect(sectionScrollTarget(m, 'z', 8)).toBe(0);
   });
 
-  it('returns 0 when averageItemLength is missing', () => {
-    expect(scrollFailureOffset({ index: 3 })).toBe(0);
+  it('returns 0 for a NaN offset', () => {
+    expect(sectionScrollTarget(new Map([['x', NaN]]), 'x', 8)).toBe(0);
   });
 
-  it('returns 0 when index is missing', () => {
-    expect(scrollFailureOffset({ averageItemLength: 80 })).toBe(0);
+  it('treats a NaN inset as 0', () => {
+    expect(sectionScrollTarget(m, 'b', NaN)).toBe(300);
   });
 });
