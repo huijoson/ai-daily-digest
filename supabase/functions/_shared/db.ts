@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { ParsedArticle } from '../../../src/feed/types.ts';
 import type { DbClient, PendingSummary, SourceRow, SummaryResult } from '../../../src/pipeline/types.ts';
+import { HN_MAX_AGE_MS } from '../../../src/pipeline/constants.ts';
 
 /** Stop retrying a summary after this many failed attempts. */
 export const MAX_SUMMARY_ATTEMPTS = 5;
@@ -78,7 +79,9 @@ export function createSupabaseDbClient(url: string, serviceRoleKey: string): DbC
         const restQ = await sb.from('summaries').select(sel)
           .in('status', ['pending', 'failed']).lt('attempts', MAX_SUMMARY_ATTEMPTS)
           .neq('articles.sources.type', 'email')
-          .order('created_at', { ascending: true }).limit(limit - rows.length);
+          .gte('articles.published_at', new Date(Date.now() - HN_MAX_AGE_MS).toISOString())
+          .order('published_at', { referencedTable: 'articles', ascending: false })
+          .limit(limit - rows.length);
         if (restQ.error) throw restQ.error;
         rows = rows.concat(restQ.data ?? []);
       }

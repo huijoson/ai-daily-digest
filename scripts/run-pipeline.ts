@@ -16,8 +16,11 @@ import { runFetch } from '../src/pipeline/run-fetch';
 import { runSummarize } from '../src/pipeline/run-summarize';
 import { runEmailIngest } from '../src/pipeline/email';
 import { createGeminiSummarizer, supportedImageMime } from '../src/pipeline/summarize';
+import { HN_MAX_AGE_MS } from '../src/pipeline/constants';
 import type { DbClient, HttpGet, PendingSummary, SourceRow, EmailFetcher, EmailMessage } from '../src/pipeline/types';
 import type { ParsedArticle } from '../src/feed/types';
+
+const MAX_SUMMARY_ATTEMPTS = 5;
 
 // --- load .env (minimal parser, no extra deps) ---
 for (const line of readFileSync(new URL('../.env', import.meta.url), 'utf8').split('\n')) {
@@ -87,14 +90,18 @@ const db: DbClient = {
     };
     // Prioritize paid email content: take email-source pending first, then the rest.
     const emailQ = await sb.from('summaries').select(sel)
-      .in('status', ['pending', 'failed']).eq('articles.sources.type', 'email')
+      .in('status', ['pending', 'failed']).lt('attempts', MAX_SUMMARY_ATTEMPTS)
+      .eq('articles.sources.type', 'email')
       .order('created_at', { ascending: true }).limit(limit);
     if (emailQ.error) throw emailQ.error;
     let rows = emailQ.data ?? [];
     if (rows.length < limit) {
       const restQ = await sb.from('summaries').select(sel)
-        .in('status', ['pending', 'failed']).neq('articles.sources.type', 'email')
-        .order('created_at', { ascending: true }).limit(limit - rows.length);
+        .in('status', ['pending', 'failed']).lt('attempts', MAX_SUMMARY_ATTEMPTS)
+        .neq('articles.sources.type', 'email')
+        .gte('articles.published_at', new Date(Date.now() - HN_MAX_AGE_MS).toISOString())
+        .order('published_at', { referencedTable: 'articles', ascending: false })
+        .limit(limit - rows.length);
       if (restQ.error) throw restQ.error;
       rows = rows.concat(restQ.data ?? []);
     }
@@ -107,9 +114,7 @@ const db: DbClient = {
     if (error) throw error;
   },
   async markSummaryFailed(articleId): Promise<void> {
-    const { error } = await sb.from('summaries')
-      .update({ status: 'failed', updated_at: new Date().toISOString() })
-      .eq('article_id', articleId);
+    const { error } = await sb.rpc('increment_summary_failure', { p_article_id: articleId });
     if (error) throw error;
   },
 };
@@ -190,8 +195,8 @@ async function main() {
   console.log('     ', await runEmailIngest({ db, fetchEmails }));
   console.log('2/3  Fetching feeds…');
   console.log('     ', await runFetch({ db, httpGet }));
-  console.log('3/3  Summarizing with Gemini (up to 8)…');
-  console.log('     ', await runSummarize({ db, summarize, batchSize: 8 }));
+  console.log('3/3  Summarizing with Gemini (up to 30)…');
+  console.log('     ', await runSummarize({ db, summarize, batchSize: 30 }));
   console.log('Done. Refresh the app to see today\'s summaries.');
 }
 
