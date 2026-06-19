@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatRelativeTime, mapFeedRow, groupFeed } from '../../src/client/feed';
+import { MAX_PAID_ITEMS } from '../../src/client/constants';
+import { HN_MAX_AGE_MS } from '../../src/pipeline/constants';
 import type { FeedItem } from '../../src/client/types';
 
 describe('formatRelativeTime', () => {
@@ -61,23 +63,55 @@ const fi = (id: string, sourceType: FeedItem['sourceType'], publishedAt: string 
   articleId: id, title: id, url: 'u', summary: 's', sourceTitle: 't', sourceType, imageUrls: [], publishedAt,
 });
 
+const NOW = new Date('2026-06-19T12:00:00.000Z').getTime();
+const iso = (ms: number) => new Date(ms).toISOString();
+
 describe('groupFeed', () => {
   it('splits paid (email) from the rest and sorts each newest-first', () => {
+    // Use dates within 24h of NOW so HN items are not recency-filtered
     const items = [
-      fi('hn-old', 'hackernews', '2026-06-10T00:00:00.000Z'),
-      fi('paid-new', 'email', '2026-06-16T00:00:00.000Z'),
-      fi('hn-new', 'hackernews', '2026-06-15T00:00:00.000Z'),
-      fi('paid-old', 'email', '2026-06-12T00:00:00.000Z'),
+      fi('hn-old', 'hackernews', iso(NOW - HN_MAX_AGE_MS + 60_000)),
+      fi('paid-new', 'email', iso(NOW - 1000)),
+      fi('hn-new', 'hackernews', iso(NOW - 2000)),
+      fi('paid-old', 'email', iso(NOW - 2000)),
     ];
-    const { paid, hackerNews } = groupFeed(items);
+    const { paid, hackerNews } = groupFeed(items, NOW);
     expect(paid.map((i) => i.articleId)).toEqual(['paid-new', 'paid-old']);
     expect(hackerNews.map((i) => i.articleId)).toEqual(['hn-new', 'hn-old']);
   });
   it('sorts null dates last', () => {
     const { hackerNews } = groupFeed([
-      fi('a', 'hackernews', null),
-      fi('b', 'hackernews', '2026-06-15T00:00:00.000Z'),
-    ]);
+      fi('a', 'rss', null),
+      fi('b', 'rss', iso(NOW - 2000)),
+    ], NOW);
     expect(hackerNews.map((i) => i.articleId)).toEqual(['b', 'a']);
+  });
+});
+
+describe('groupFeed (recency + paid cap)', () => {
+  it('caps paid to the latest MAX_PAID_ITEMS, newest-first', () => {
+    const items = [
+      fi('p1', 'email', iso(NOW - 1000)),
+      fi('p2', 'email', iso(NOW - 2000)),
+      fi('p3', 'email', iso(NOW - 3000)),
+      fi('p4', 'email', iso(NOW - 4000)),
+    ];
+    const { paid } = groupFeed(items, NOW);
+    expect(paid.map((i) => i.articleId)).toEqual(['p1', 'p2', 'p3'].slice(0, MAX_PAID_ITEMS));
+    expect(paid).toHaveLength(MAX_PAID_ITEMS);
+  });
+  it('keeps HN within 24h, drops older and undated HN', () => {
+    const items = [
+      fi('recent', 'hackernews', iso(NOW - 1000)),
+      fi('old', 'hackernews', iso(NOW - HN_MAX_AGE_MS - 1000)),
+      fi('undated', 'hackernews', null),
+    ];
+    const { hackerNews } = groupFeed(items, NOW);
+    expect(hackerNews.map((i) => i.articleId)).toEqual(['recent']);
+  });
+  it('does not recency-filter non-email non-HN sources (rss)', () => {
+    const items = [fi('oldrss', 'rss', iso(NOW - HN_MAX_AGE_MS - 5000))];
+    const { hackerNews } = groupFeed(items, NOW);
+    expect(hackerNews.map((i) => i.articleId)).toEqual(['oldrss']);
   });
 });
