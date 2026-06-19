@@ -15,15 +15,17 @@ describe('buildSummaryPrompt', () => {
     expect(p.toLowerCase()).toContain('no content');
   });
 
-  it('instructs the model to summarize in the article\'s own language', () => {
+  it('brief mode asks for English plus a Traditional Chinese translation', () => {
     const p = buildSummaryPrompt({ title: 'T', url: 'u', content: 'c' });
-    expect(p.toLowerCase()).toContain('same language');
+    expect(p.toLowerCase()).toContain('english');
+    expect(p).toContain('繁體中文');
+    expect(p.toLowerCase()).not.toContain('same language');
   });
 
   it('brief mode (default) asks for 2-3 sentences', () => {
     const p = buildSummaryPrompt({ title: 'T', url: 'u', content: 'c' });
     expect(p).toContain('2-3');
-    expect(p.toLowerCase()).toContain('same language');
+    expect(p).toContain('English');
   });
 
   it('analysis mode asks for bullets and an analysis paragraph', () => {

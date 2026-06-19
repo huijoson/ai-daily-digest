@@ -38,8 +38,9 @@ export function buildSummaryPrompt(
     ? analysisInstructions
     : [
         'Summarize the following article in 2-3 concise sentences for a daily digest.',
-        'Write the summary in the same language as the article.',
-        'Be factual and neutral. Do not add any preamble or markdown.',
+        'First write the summary in English, then on a new paragraph write a Traditional Chinese (繁體中文) translation of that summary.',
+        'Output exactly the two paragraphs separated by a blank line — English first, then Traditional Chinese — with no labels, preamble, or markdown.',
+        'Be factual and neutral.',
       ];
   return [...instructions, '', `Title: ${input.title}`, `URL: ${input.url}`, '', 'Content:', body].join('\n');
 }
