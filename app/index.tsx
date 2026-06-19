@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, Stack } from 'expo-router';
 import { listDigest } from '../src/client/data';
-import { buildFeedSections, formatRelativeTime, scrollFailureOffset } from '../src/client/feed';
+import { buildFeedSections, formatRelativeTime, sectionScrollTarget } from '../src/client/feed';
 import { setFeedOrder } from '../src/client/feedOrder';
 import { supabase } from '../src/client/supabase';
 import { colors, spacing, styles as t, type } from '../src/client/theme';
 import type { FeedItem } from '../src/client/types';
 
+const JUMP_INSET = 8;
+
 export default function Today() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const listRef = useRef<SectionList<FeedItem>>(null);
-  const lastJump = useRef(0);
-  const retryCount = useRef(0);
+  const scrollRef = useRef<ScrollView>(null);
+  // Section content offsets, keyed by stable section key (NOT array index) so they
+  // survive refreshes: onLayout overwrites a moved section; unchanged sections keep a
+  // valid entry; removed sections leave a stale entry that is never looked up.
+  const offsets = useRef<Map<string, number>>(new Map());
 
   const load = useCallback(async () => {
     try { setItems(await listDigest()); } finally { setLoading(false); setRefreshing(false); }
@@ -29,9 +33,9 @@ export default function Today() {
   }, [sections]);
 
   const jumpTo = (sectionIndex: number) => {
-    lastJump.current = sectionIndex;
-    retryCount.current = 0;
-    listRef.current?.scrollToLocation({ sectionIndex, itemIndex: 0, viewOffset: 8, animated: true });
+    const key = sections[sectionIndex]?.key;
+    if (key == null) return;
+    scrollRef.current?.scrollTo({ y: sectionScrollTarget(offsets.current, key, JUMP_INSET), animated: true });
   };
 
   if (loading) return <ActivityIndicator style={{ marginTop: 40 }} color={colors.accent} />;
@@ -70,39 +74,32 @@ export default function Today() {
           ))}
         </ScrollView>
       )}
-      <SectionList
-        ref={listRef}
+      <ScrollView
+        ref={scrollRef}
         contentContainerStyle={{ padding: spacing.lg }}
-        sections={sections}
-        keyExtractor={(i) => i.articleId}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />}
-        ListEmptyComponent={<Text style={{ color: colors.muted }}>Nothing new today. Pull to refresh.</Text>}
-        onScrollToIndexFailed={(info) => {
-          // Bounded recovery: a target section may not be measured yet on iOS. Scroll
-          // toward an estimated offset to force measurement, then re-issue the jump.
-          if (retryCount.current >= 3) return;
-          retryCount.current += 1;
-          listRef.current?.getScrollResponder()?.scrollTo({ y: scrollFailureOffset(info), animated: false });
-          setTimeout(() => {
-            listRef.current?.scrollToLocation({ sectionIndex: lastJump.current, itemIndex: 0, viewOffset: 8, animated: true });
-          }, 250);
-        }}
-        renderSectionHeader={({ section }) => (
-          <Text style={[t.sectionPill, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>{section.title}</Text>
+      >
+        {sections.length === 0 ? (
+          <Text style={{ color: colors.muted }}>Nothing new today. Pull to refresh.</Text>
+        ) : (
+          sections.map((s) => (
+            <View key={s.key} onLayout={(e) => { offsets.current.set(s.key, e.nativeEvent.layout.y); }}>
+              <Text style={[t.sectionPill, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>{s.title}</Text>
+              {s.data.map((item, idx) => (
+                <Link key={item.articleId} href={`/article/${item.articleId}`} asChild>
+                  <Pressable style={StyleSheet.flatten([t.comicCard, { padding: spacing.md, marginTop: idx > 0 ? spacing.md : 0 }])}>
+                    <Text style={type.title}>{item.title}</Text>
+                    <Text numberOfLines={6} style={[type.summary, { marginTop: spacing.xs }]}>{item.summary}</Text>
+                    <Text style={[type.meta, { marginTop: spacing.sm }]}>
+                      {item.sourceTitle} · {formatRelativeTime(item.publishedAt, Date.now())}
+                    </Text>
+                  </Pressable>
+                </Link>
+              ))}
+            </View>
+          ))
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        renderItem={({ item }) => (
-          <Link href={`/article/${item.articleId}`} asChild>
-            <Pressable style={StyleSheet.flatten([t.comicCard, { padding: spacing.md }])}>
-              <Text style={type.title}>{item.title}</Text>
-              <Text numberOfLines={6} style={[type.summary, { marginTop: spacing.xs }]}>{item.summary}</Text>
-              <Text style={[type.meta, { marginTop: spacing.sm }]}>
-                {item.sourceTitle} · {formatRelativeTime(item.publishedAt, Date.now())}
-              </Text>
-            </Pressable>
-          </Link>
-        )}
-      />
+      </ScrollView>
     </View>
   );
 }
