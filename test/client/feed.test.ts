@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatRelativeTime, mapFeedRow, buildFeedSections, neighbors } from '../../src/client/feed';
+import { formatRelativeTime, mapFeedRow, buildFeedSections, neighbors, scrollFailureOffset } from '../../src/client/feed';
 import { MAX_PAID_ITEMS } from '../../src/client/constants';
 import { HN_MAX_AGE_MS } from '../../src/pipeline/constants';
 import type { FeedItem } from '../../src/client/types';
@@ -191,5 +191,27 @@ describe('neighbors', () => {
 
   it('uses the first occurrence of a duplicated id', () => {
     expect(neighbors(['a', 'b', 'a', 'c'], 'a')).toEqual({ prevId: null, nextId: 'b' });
+  });
+});
+
+describe('scrollFailureOffset', () => {
+  it('multiplies averageItemLength by index', () => {
+    expect(scrollFailureOffset({ averageItemLength: 80, index: 5 })).toBe(400);
+  });
+
+  it('returns 0 for a zero index', () => {
+    expect(scrollFailureOffset({ averageItemLength: 80, index: 0 })).toBe(0);
+  });
+
+  it('returns 0 when averageItemLength is NaN', () => {
+    expect(scrollFailureOffset({ averageItemLength: NaN, index: 3 })).toBe(0);
+  });
+
+  it('returns 0 when averageItemLength is missing', () => {
+    expect(scrollFailureOffset({ index: 3 })).toBe(0);
+  });
+
+  it('returns 0 when index is missing', () => {
+    expect(scrollFailureOffset({ averageItemLength: 80 })).toBe(0);
   });
 });

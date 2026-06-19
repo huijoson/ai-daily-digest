@@ -33,6 +33,17 @@ export function neighbors(
   };
 }
 
+/**
+ * Estimate a scroll offset from a `SectionList.onScrollToIndexFailed` payload.
+ * Guards both fields with `Number.isFinite` (NaN/missing → 0) so a `NaN`
+ * offset is never returned. Returns `Math.max(0, averageItemLength * index)`.
+ */
+export function scrollFailureOffset(info: { averageItemLength?: number; index?: number }): number {
+  const len = Number.isFinite(info.averageItemLength) ? (info.averageItemLength as number) : 0;
+  const idx = Number.isFinite(info.index) ? (info.index as number) : 0;
+  return Math.max(0, len * idx);
+}
+
 function one<T>(v: T | T[] | null | undefined): T | undefined {
   if (v == null) return undefined;
   return Array.isArray(v) ? v[0] : v;
