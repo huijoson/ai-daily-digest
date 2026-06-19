@@ -12,9 +12,13 @@ function isContentImage(tag: string, src: string): boolean {
   if (/\/open(\b|\/|\?)/.test(src)) return false;            // open beacon path
   const width = Number(/\bwidth\s*=\s*"?(\d+)"?/i.exec(tag)?.[1] ?? NaN);
   const height = Number(/\bheight\s*=\s*"?(\d+)"?/i.exec(tag)?.[1] ?? NaN);
-  if (width === 1 || height === 1) return false;             // tracking pixel
+  if (width === 1 || height === 1) return false;             // tracking pixel (any host)
   // only known content-image hosts: Substack CDN or Mailchimp (mcusercontent.com)
-  if (!src.includes('substackcdn.com/image/') && !host.endsWith('mcusercontent.com')) return false;
+  const isMailchimpCdn = host === 'mcusercontent.com' || host.endsWith('.mcusercontent.com');
+  if (!src.includes('substackcdn.com/image/') && !isMailchimpCdn) return false;
+  // Decorative-size guard for Mailchimp only (icons/thin dividers). Substack's HTML dim
+  // attrs are unreliable for real charts, so it is filtered by its w_ URL param below.
+  if (isMailchimpCdn && ((Number.isFinite(width) && width < 150) || (Number.isFinite(height) && height < 60))) return false;
   if (/[/,](c_fill|g_face|g_auto)\b/.test(src)) return false; // avatar/crop transforms
   let decoded = src;
   try { decoded = decodeURIComponent(src); } catch { /* malformed escape: keep raw src */ }

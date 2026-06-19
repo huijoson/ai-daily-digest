@@ -68,6 +68,18 @@ describe('parseSubstackEmail', () => {
     const a = parseSubstackEmail({ ...base, html: `<p>x</p><img src="${logo}">` });
     expect(a.imageUrls).toEqual([]);
   });
+
+  it('drops a small decorative mcusercontent.com image by its dimensions', () => {
+    const icon = 'https://mcusercontent.com/abc/images/social.png';
+    const a = parseSubstackEmail({ ...base, html: `<p>x</p><img width="32" height="32" src="${icon}">` });
+    expect(a.imageUrls).toEqual([]);
+  });
+
+  it('rejects a host that merely ends with the cdn name (spoof)', () => {
+    const spoof = 'https://evilmcusercontent.com/abc/images/chart.png';
+    const a = parseSubstackEmail({ ...base, html: `<p>x</p><img width="600" src="${spoof}">` });
+    expect(a.imageUrls).toEqual([]);
+  });
 });
 
 function makeDb(sources: SourceRow[], existing: Record<string, string[]> = {}) {
