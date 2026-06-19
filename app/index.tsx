@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View } from 'react-native';
 import { Link, Stack } from 'expo-router';
 import { listDigest } from '../src/client/data';
-import { buildFeedSections, formatRelativeTime } from '../src/client/feed';
+import { buildFeedSections, formatRelativeTime, scrollFailureOffset } from '../src/client/feed';
 import { setFeedOrder } from '../src/client/feedOrder';
 import { supabase } from '../src/client/supabase';
 import { colors, spacing, styles as t, type } from '../src/client/theme';
@@ -14,6 +14,7 @@ export default function Today() {
   const [refreshing, setRefreshing] = useState(false);
   const listRef = useRef<SectionList<FeedItem>>(null);
   const lastJump = useRef(0);
+  const retryCount = useRef(0);
 
   const load = useCallback(async () => {
     try { setItems(await listDigest()); } finally { setLoading(false); setRefreshing(false); }
@@ -29,6 +30,7 @@ export default function Today() {
 
   const jumpTo = (sectionIndex: number) => {
     lastJump.current = sectionIndex;
+    retryCount.current = 0;
     listRef.current?.scrollToLocation({ sectionIndex, itemIndex: 0, viewOffset: 8, animated: true });
   };
 
@@ -57,7 +59,12 @@ export default function Today() {
           style={jumpBar.bar}
         >
           {sections.map((s, i) => (
-            <Pressable key={s.key} onPress={() => jumpTo(i)} style={jumpBar.chip}>
+            <Pressable
+              key={s.key}
+              onPress={() => jumpTo(i)}
+              hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
+              style={jumpBar.chip}
+            >
               <Text numberOfLines={1} style={jumpBar.chipText}>{s.title}</Text>
             </Pressable>
           ))}
@@ -70,10 +77,15 @@ export default function Today() {
         keyExtractor={(i) => i.articleId}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />}
         ListEmptyComponent={<Text style={{ color: colors.muted }}>Nothing new today. Pull to refresh.</Text>}
-        onScrollToIndexFailed={() => {
+        onScrollToIndexFailed={(info) => {
+          // Bounded recovery: a target section may not be measured yet on iOS. Scroll
+          // toward an estimated offset to force measurement, then re-issue the jump.
+          if (retryCount.current >= 3) return;
+          retryCount.current += 1;
+          listRef.current?.getScrollResponder()?.scrollTo({ y: scrollFailureOffset(info), animated: false });
           setTimeout(() => {
             listRef.current?.scrollToLocation({ sectionIndex: lastJump.current, itemIndex: 0, viewOffset: 8, animated: true });
-          }, 300);
+          }, 250);
         }}
         renderSectionHeader={({ section }) => (
           <Text style={[t.sectionPill, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>{section.title}</Text>
@@ -107,8 +119,11 @@ const jumpBar = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.ink,
     borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  chipText: { color: colors.ink, fontWeight: '700', fontSize: 12 },
+  chipText: { color: colors.ink, fontWeight: '700', fontSize: 13 },
 });
