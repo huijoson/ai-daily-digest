@@ -13,3 +13,6 @@ dist/
 # generated native projects (expo prebuild / CNG)
 /ios/
 /android/
+
+# brainstorm visual companion
+.superpowers/
